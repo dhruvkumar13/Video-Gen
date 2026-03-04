@@ -1,0 +1,140 @@
+{
+  "questions": [
+    {
+      "id": "test_001",
+      "title": "Quick Derivative",
+      "topic": "derivatives",
+      "problem_latex": "\\frac{d}{dx}(x^3)",
+      "steps": [
+        {
+          "narration": "Let's find the derivative of x cubed using the power rule.",
+          "latex": "\\frac{d}{dx}(x^3)",
+          "animation": "write"
+        },
+        {
+          "narration": "Bring down the 3 and reduce the exponent by one.",
+          "latex_from": "x^3",
+          "latex_to": "3x^2",
+          "animation": "transform"
+        },
+        {
+          "narration": "The derivative of x cubed is 3x squared. Done!",
+          "latex": "\\boxed{\\frac{d}{dx}(x^3) = 3x^2}",
+          "animation": "write"
+        }
+      ]
+    },
+    {
+      "id": "deriv_001",
+      "title": "Power Rule Derivative",
+      "topic": "derivatives",
+      "problem_latex": "\\frac{d}{dx}(3x^4 - 5x^2 + 7)",
+      "steps": [
+        {
+          "narration": "Alright, let's find the derivative of 3x to the fourth minus 5x squared plus 7. We'll use the power rule, which says we bring down the exponent and reduce it by one.",
+          "latex": "\\frac{d}{dx}(3x^4 - 5x^2 + 7)",
+          "animation": "write"
+        },
+        {
+          "narration": "Starting with the first term, 3x to the fourth. We bring down the 4 and multiply it by 3 to get 12, then reduce the exponent by one. That gives us 12x cubed.",
+          "latex_from": "3x^4",
+          "latex_to": "12x^3",
+          "animation": "transform"
+        },
+        {
+          "narration": "Next up, negative 5x squared. Bring down the 2, multiply by negative 5 to get negative 10, and reduce the exponent by one. We get negative 10x.",
+          "latex_from": "-5x^2",
+          "latex_to": "-10x",
+          "animation": "transform"
+        },
+        {
+          "narration": "Now for the constant term, 7. The derivative of any constant is just zero, so that term disappears entirely. Nice and simple!",
+          "latex_from": "7",
+          "latex_to": "0",
+          "animation": "transform"
+        },
+        {
+          "narration": "Putting it all together, our final answer is 12x cubed minus 10x. Great job, that's the power rule in action!",
+          "latex": "\\boxed{\\frac{d}{dx}(3x^4 - 5x^2 + 7) = 12x^3 - 10x}",
+          "animation": "write"
+        }
+      ]
+    },
+    {
+      "id": "limit_001",
+      "title": "Evaluating a Limit by Factoring",
+      "topic": "limits",
+      "problem_latex": "\\lim_{x \\to 2} \\frac{x^2 - 4}{x - 2}",
+      "steps": [
+        {
+          "narration": "Let's evaluate the limit as x approaches 2 of x squared minus 4, all over x minus 2. Our first instinct should be to try plugging in the value directly.",
+          "latex": "\\lim_{x \\to 2} \\frac{x^2 - 4}{x - 2}",
+          "animation": "write"
+        },
+        {
+          "narration": "If we substitute x equals 2 directly, we get 4 minus 4 on top, which is 0, and 2 minus 2 on the bottom, which is also 0. We have a zero over zero indeterminate form, so we need a different approach.",
+          "latex": "\\frac{(2)^2 - 4}{(2) - 2} = \\frac{0}{0}",
+          "animation": "write"
+        },
+        {
+          "narration": "Here's the key insight: x squared minus 4 is a difference of squares! We can factor it as x minus 2 times x plus 2. Let's rewrite our limit with that factored form.",
+          "latex_from": "\\lim_{x \\to 2} \\frac{x^2 - 4}{x - 2}",
+          "latex_to": "\\lim_{x \\to 2} \\frac{(x - 2)(x + 2)}{x - 2}",
+          "animation": "transform"
+        },
+        {
+          "narration": "Now we can cancel the x minus 2 factor from the top and bottom. Since we're taking a limit as x approaches 2, not evaluating at x equals 2, this cancellation is perfectly valid.",
+          "latex_from": "\\lim_{x \\to 2} \\frac{(x - 2)(x + 2)}{x - 2}",
+          "latex_to": "\\lim_{x \\to 2} (x + 2)",
+          "animation": "transform"
+        },
+        {
+          "narration": "Now we can safely substitute x equals 2 into x plus 2. That gives us 2 plus 2, which equals 4. And there's our answer!",
+          "latex_from": "\\lim_{x \\to 2} (x + 2)",
+          "latex_to": "4",
+          "animation": "transform"
+        },
+        {
+          "narration": "So the limit as x approaches 2 of x squared minus 4 over x minus 2 is equal to 4. Factoring saved the day!",
+          "latex": "\\boxed{\\lim_{x \\to 2} \\frac{x^2 - 4}{x - 2} = 4}",
+          "animation": "write"
+        }
+      ]
+    },
+    {
+      "id": "integral_001",
+      "title": "Basic Power Rule Integration",
+      "topic": "integrals",
+      "problem_latex": "\\int (2x^3 + 6x)\\, dx",
+      "steps": [
+        {
+          "narration": "Let's find the integral of 2x cubed plus 6x with respect to x. We'll use the reverse power rule, which says we raise the exponent by one and then divide by that new exponent.",
+          "latex": "\\int (2x^3 + 6x)\\, dx",
+          "animation": "write"
+        },
+        {
+          "narration": "Starting with the first term, 2x cubed. We raise the exponent from 3 to 4, then divide by 4. So we get 2 over 4 times x to the fourth, which simplifies to one-half x to the fourth.",
+          "latex_from": "\\int 2x^3\\, dx",
+          "latex_to": "\\frac{2}{4}x^4 = \\frac{1}{2}x^4",
+          "animation": "transform"
+        },
+        {
+          "narration": "Now for the second term, 6x. Remember, x is the same as x to the first power. Raise the exponent from 1 to 2, then divide by 2. That gives us 6 over 2 times x squared, which simplifies to 3x squared.",
+          "latex_from": "\\int 6x\\, dx",
+          "latex_to": "\\frac{6}{2}x^2 = 3x^2",
+          "animation": "transform"
+        },
+        {
+          "narration": "Now we combine our results and don't forget the most important part: adding the constant of integration, C. We always need that C for indefinite integrals!",
+          "latex": "\\frac{1}{2}x^4 + 3x^2 + C",
+          "animation": "write"
+        },
+        {
+          "narration": "And there we have it! The integral of 2x cubed plus 6x is one-half x to the fourth plus 3x squared plus C. Well done!",
+          "latex": "\\boxed{\\int (2x^3 + 6x)\\, dx = \\frac{1}{2}x^4 + 3x^2 + C}",
+          "animation": "write"
+        }
+      ]
+    }
+  ]
+}

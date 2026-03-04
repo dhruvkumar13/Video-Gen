@@ -1,0 +1,27 @@
+# Secrets
+.env
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Generated media & jobs
+media/
+jobs/
+
+# IDE / editor
+.claude/
+.playwright-mcp/
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Remotion build artifacts
+remotion/node_modules/
+remotion/dist/
+remotion/out/

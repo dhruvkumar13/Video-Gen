@@ -1,0 +1,6 @@
+manim
+elevenlabs
+python-dotenv
+flask
+openai
+mem0ai
