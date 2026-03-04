@@ -1,0 +1,12 @@
+ffmpeg
+texlive-base
+texlive-latex-extra
+texlive-latex-recommended
+texlive-fonts-recommended
+texlive-science
+libpango1.0-dev
+libcairo2-dev
+libgif-dev
+libjpeg-dev
+pkg-config
+build-essential

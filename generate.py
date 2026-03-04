@@ -22,13 +22,20 @@ def load_question(question_id):
     return None
 
 
+import platform
+
 def _get_tex_env():
-    """Return environment dict with TeX/Homebrew paths configured."""
+    """Return environment dict with TeX paths configured (macOS + Linux)."""
     env = os.environ.copy()
-    env["PATH"] = "/opt/homebrew/bin:" + env.get("PATH", "")
-    texmf = "/opt/homebrew/Cellar/texlive/20250308_2/share/texmf-dist"
-    env["TEXMFCNF"] = texmf + "/web2c:"
-    env["TEXMFDIST"] = texmf
+    if platform.system() == "Darwin":
+        # macOS Homebrew texlive
+        env["PATH"] = "/opt/homebrew/bin:" + env.get("PATH", "")
+        texmf = "/opt/homebrew/Cellar/texlive/20250308_2/share/texmf-dist"
+        env["TEXMFCNF"] = texmf + "/web2c:"
+        env["TEXMFDIST"] = texmf
+    else:
+        # Linux (Streamlit Cloud / Ubuntu) — texlive from apt
+        env["PATH"] = "/usr/bin:" + env.get("PATH", "")
     return env
 
 
