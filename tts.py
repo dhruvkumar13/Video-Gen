@@ -13,15 +13,9 @@ from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dotenv import load_dotenv
 
-import shutil
-
 load_dotenv()
 
 logger = logging.getLogger(__name__)
-
-# Paths to ffmpeg/ffprobe — auto-detect or fall back to Homebrew (macOS)
-FFPROBE = shutil.which("ffprobe") or "/opt/homebrew/bin/ffprobe"
-FFMPEG = shutil.which("ffmpeg") or "/opt/homebrew/bin/ffmpeg"
 
 # Preferred voice and model (with fallbacks)
 # Female voices that sound warm and natural for tutoring:
@@ -113,7 +107,7 @@ def _pick_model(client):
 def _get_audio_duration(file_path):
     """Get the duration of an audio file in seconds using ffprobe."""
     cmd = [
-        FFPROBE,
+        "/opt/homebrew/bin/ffprobe",
         "-v", "quiet",
         "-show_entries", "format=duration",
         "-of", "default=noprint_wrappers=1:nokey=1",
@@ -208,7 +202,7 @@ def _concatenate_segments(segment_paths, output_path):
             f.write(f"file '{abs_path}'\n")
 
     cmd = [
-        FFMPEG,
+        "/opt/homebrew/bin/ffmpeg",
         "-y",                    # overwrite output
         "-f", "concat",          # concat demuxer
         "-safe", "0",            # allow absolute paths
