@@ -73,16 +73,17 @@ class TutorialScene(Scene):
         self.play(Write(title), run_time=1)
         self.play(Write(problem), FadeIn(subtitle), run_time=2)
         # Sync with TTS: wait for remaining narration time
+        # The FadeOut below takes 0.3s and is included in the narration window
+        clear_time = 0.3  # FadeOut run_time below
         elapsed = 1 + 2  # title write + problem write
         if narration_dur > 0:
-            remaining = narration_dur - elapsed - FADE_OUT_TIME
+            remaining = narration_dur - elapsed - clear_time
             self.wait(max(remaining, 0.3))
         else:
             self.wait(1)
 
-        # Clear the title card
-        self.play(FadeOut(title), FadeOut(problem), FadeOut(subtitle), run_time=0.5)
-        self.wait(0.3)
+        # Clear the title card (time is already accounted for above)
+        self.play(FadeOut(title), FadeOut(problem), FadeOut(subtitle), run_time=0.3)
 
         # --- Whiteboard: process steps with accumulating board context ---
         board = {

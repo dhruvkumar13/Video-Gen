@@ -79,13 +79,13 @@ const MIN_DURATIONS: Record<string, number> = {
   annotated_graph: 120,    // 4.0s
 };
 
-const FINAL_PAUSE = 60; // 2.0s — hold final frame
+const FINAL_PAUSE = 0;
 
 /** Get duration in frames for a step, using TTS audio length when available. */
 function getStepDuration(step: StepData): number {
   if (step.narration_duration && step.narration_duration > 0) {
-    // Convert TTS seconds to frames, add a small pad for visual breathing room
-    const audioFrames = Math.ceil(step.narration_duration * FPS) + 15;
+    // Convert TTS seconds to frames — no padding, audio drives exact timing
+    const audioFrames = Math.ceil(step.narration_duration * FPS);
     const minFrames = MIN_DURATIONS[step.animation] || 60;
     return Math.max(audioFrames, minFrames);
   }
@@ -301,9 +301,10 @@ export const MathScene: React.FC<QuestionData> = (props) => {
 const TitleCard: React.FC<{
   title: string; latex: string; narration: string; frame: number; duration: number;
 }> = ({ title, latex, narration, frame, duration }) => {
+  const fadeDur = Math.min(15, Math.floor(duration / 4));
   const opacity = interpolate(
     frame,
-    [0, 15, duration - 15, duration],
+    [0, fadeDur, duration - fadeDur, duration],
     [0, 1, 1, 0],
     { extrapolateRight: "clamp" }
   );
@@ -329,9 +330,10 @@ const TitleCard: React.FC<{
 const StepLabelView: React.FC<{
   label: string; narration: string; frame: number; duration: number;
 }> = ({ label, narration, frame, duration }) => {
+  const fadeDur = Math.min(12, Math.floor(duration / 4));
   const opacity = interpolate(
     frame,
-    [0, 12, duration - 12, duration],
+    [0, fadeDur, duration - fadeDur, duration],
     [0, 1, 1, 0],
     { extrapolateRight: "clamp" }
   );
@@ -462,9 +464,10 @@ const Subtitle: React.FC<{ text: string; frame: number; duration: number }> = ({
   frame,
   duration,
 }) => {
+  const fadeDur = Math.min(10, Math.floor(duration / 4));
   const opacity = interpolate(
     frame,
-    [0, 10, duration - 10, duration],
+    [0, fadeDur, duration - fadeDur, duration],
     [0, 1, 1, 0],
     { extrapolateRight: "clamp" }
   );
@@ -473,16 +476,19 @@ const Subtitle: React.FC<{ text: string; frame: number; duration: number }> = ({
     <div
       style={{
         position: "absolute",
-        bottom: 30,
+        bottom: 24,
         left: "50%",
         transform: "translateX(-50%)",
-        fontSize: 30,
-        color: "#444444",
+        fontSize: 22,
+        color: "#ffffff",
         textAlign: "center",
-        maxWidth: "85%",
-        lineHeight: 1.45,
-        fontWeight: 400,
+        maxWidth: "88%",
+        lineHeight: 1.5,
+        fontWeight: 500,
         opacity,
+        background: "rgba(0, 0, 0, 0.65)",
+        padding: "10px 24px",
+        borderRadius: 8,
       }}
     >
       {text}

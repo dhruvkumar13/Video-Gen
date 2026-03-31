@@ -9,6 +9,7 @@ from openai import OpenAI
 import json
 import os
 import math
+import logging
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -140,8 +141,8 @@ Use LaTeX arrows and annotations to show logical connections between steps:
 These visual cues help the student follow the logic, like a tutor drawing arrows on a board.
 
 GUIDELINES FOR GOOD SOLUTIONS:
-- Use 8-14 steps total. Show ALL your work — every algebraic manipulation should be visible.
-  More steps = more learning. Don't rush. The student is here to understand, not just see an answer.
+- Follow the step count specified in the VIDEO REQUIREMENTS section below. Show ALL your work —
+  every algebraic manipulation should be visible. The student is here to understand, not just see an answer.
 - Prefer "write" over "transform". Each "write" step builds on the previous line so the
   student sees the full chain of reasoning. Prefix continuation lines with "= " or
   "\\Rightarrow" so the student follows the logical flow.
@@ -150,18 +151,19 @@ GUIDELINES FOR GOOD SOLUTIONS:
 
 NARRATION STYLE — THIS IS A SPOKEN VOICE-OVER, NOT TEXT:
 - Write narrations as if you're speaking to a student sitting next to you. Be warm and encouraging.
-- Use conversational phrases: "Let's see...", "Now here's the neat part...", "Don't worry, this
-  looks harder than it is...", "Nice! So we've got...", "And just like that, we're done!"
+- Use conversational transitions between steps:
+  Opening: "Alright, let's dive in!", "Okay, so here's what we're working with..."
+  Building: "Now here's where it gets interesting...", "Stay with me on this one..."
+  Revealing: "And look at that!", "See how that simplifies?", "Nice — that's much cleaner."
+  Celebrating: "And there it is!", "Boom — that's our answer!", "Beautiful result."
 - Name techniques when you use them: "This is the chain rule — we differentiate the outside,
   then multiply by the derivative of the inside."
-- Briefly explain WHY each step works, not just WHAT you're doing:
-  "We can split this integral into two pieces because integration is linear — we can
-  integrate each term separately."
-- Add quick intuition or checks: "Think of it this way...", "A quick sanity check...",
-  "Notice how this makes sense because..."
-- Narrations should be 1-3 sentences. Avoid LaTeX notation — write everything as spoken words.
+- Briefly explain WHY each step works, not just WHAT you're doing.
+- Add quick intuition checks: "Think of it this way...", "Notice how this makes sense because..."
+- Keep narrations to 1-3 sentences. Avoid LaTeX notation — write everything as spoken words.
   Say "x squared" not "x^2", say "the square root of 3" not "sqrt(3)".
-- Keep it SIMPLE. Use short sentences. Imagine the student is hearing this for the first time.
+- IMPORTANT: Narrations appear as subtitles in the video. Keep each narration under 120 characters
+  so it fits on screen without wrapping to tiny text.
 
 VISUALS AND GRAPHS:
 - Include at least one graph, tangent, or area step for visualization when the problem
@@ -175,7 +177,8 @@ VISUALS AND GRAPHS:
 - Keep each LaTeX expression under 60 chars so it fits on one line of the whiteboard."""
 
 
-def generate_solution(question_text: str, preferences: str = "", chat_context: str = "") -> dict:
+def generate_solution(question_text: str, preferences: str = "", chat_context: str = "",
+                      preset: str = None, active_overrides: list = None, progress_cb=None) -> dict:
     """Generate a step-by-step math solution using GPT-5.3.
 
     Args:
@@ -184,6 +187,8 @@ def generate_solution(question_text: str, preferences: str = "", chat_context: s
                      (e.g. "- Include more graphs\n- Simpler language").
                      Injected into the system prompt to personalise output.
         chat_context: Optional recent chat messages for conversational context.
+        preset: Video style preset — "quick_review", "standard", or "deep_dive".
+        active_overrides: List of active override keys (e.g. ["more_graphs", "more_color"]).
 
     Returns:
         A dict with keys 'title', 'problem_latex', and 'steps',
@@ -193,68 +198,67 @@ def generate_solution(question_text: str, preferences: str = "", chat_context: s
         ValueError: If the response fails validation.
         openai.APIError: If the API call fails.
     """
-    # Build system prompt — weave in student context if available
+    # Build system prompt — inject structured video requirements
     system = SYSTEM_PROMPT
+
+    # Build structured video requirements from preset + overrides
+    from memory import build_video_requirements
+    video_reqs = build_video_requirements(preset, active_overrides)
+    system += "\n\n" + video_reqs
+
     if preferences or chat_context:
-        system += (
-            "\n\nABOUT THIS STUDENT:\n"
-            "The following context comes from past conversations and this session. "
-            "Use it to naturally shape your tone, analogies, and pacing.\n\n"
-            "- Weave their interests into analogies and intuition checks. If they play "
-            "a sport, use it — e.g. \"the derivative is like the speed of a tennis ball "
-            "at a specific moment\" or \"think of the integral as the total distance the "
-            "ball travels\". Make the math feel connected to THEIR world.\n"
-            "- Don't announce what you're doing — just do it. Say \"imagine the speed of "
-            "a serve\" not \"since you play tennis, think about a serve\". The analogy "
-            "should feel natural, like a tutor who just knows what clicks.\n"
-            "- Adapt tone and pacing to match their personality. Keep it light and "
-            "encouraging if they seem reluctant. Be concise if they prefer brevity.\n"
-        )
+        system += "\n\nABOUT THIS STUDENT:\n"
         if preferences:
-            system += "\nStudent profile (from memory):\n" + preferences + "\n"
+            system += "Student profile (from memory):\n" + preferences + "\n"
         if chat_context:
-            system += "\n" + chat_context + "\n"
+            system += chat_context + "\n"
 
     last_error = None
-    for attempt in range(2):
-        response = client.chat.completions.create(
-            model="gpt-5.3-chat-latest",
-            max_completion_tokens=4096,
-            messages=[
-                {"role": "system", "content": system},
-                {"role": "user", "content": question_text},
-            ]
-        )
-
-        raw_text = response.choices[0].message.content
-
-        # Try parsing the response as JSON directly
+    for attempt in range(3):  # 3 attempts instead of 2
         try:
-            result = json.loads(raw_text)
-        except json.JSONDecodeError:
-            # If direct parsing fails, try to extract JSON from the response
-            # by finding the outermost { ... } pair
-            start = raw_text.find("{")
-            end = raw_text.rfind("}")
-            if start == -1 or end == -1 or end <= start:
-                last_error = ValueError(
-                    f"GPT did not return valid JSON. Response was:\n{raw_text[:500]}"
-                )
-                continue
-            extracted = raw_text[start:end + 1]
+            response = client.chat.completions.create(
+                model="gpt-5.3-chat-latest",
+                max_completion_tokens=4096,
+                messages=[
+                    {"role": "system", "content": system},
+                    {"role": "user", "content": question_text},
+                ]
+            )
+
+            raw_text = response.choices[0].message.content
+
+            # Try parsing the response as JSON directly
             try:
-                result = json.loads(extracted)
-            except json.JSONDecodeError as e:
-                last_error = ValueError(
-                    f"Could not parse extracted JSON: {e}\nExtracted text:\n{extracted[:500]}"
-                )
+                result = json.loads(raw_text)
+            except json.JSONDecodeError:
+                # If direct parsing fails, try to extract JSON from the response
+                # by finding the outermost { ... } pair
+                start = raw_text.find("{")
+                end = raw_text.rfind("}")
+                if start == -1 or end == -1 or end <= start:
+                    last_error = ValueError(
+                        f"GPT did not return valid JSON. Response was:\n{raw_text[:500]}"
+                    )
+                    continue
+                extracted = raw_text[start:end + 1]
+                try:
+                    result = json.loads(extracted)
+                except json.JSONDecodeError as e:
+                    last_error = ValueError(
+                        f"Could not parse extracted JSON: {e}\nExtracted text:\n{extracted[:500]}"
+                    )
+                    continue
+
+            try:
+                _validate(result)
+                return result
+            except ValueError as e:
+                last_error = e
                 continue
 
-        try:
-            _validate(result)
-            return result
-        except ValueError as e:
-            last_error = e
+        except Exception as api_err:
+            last_error = api_err
+            logging.error("AI solver API error (attempt %d): %s", attempt + 1, api_err)
             continue
 
     raise last_error
@@ -295,8 +299,9 @@ def _validate(data: dict):
     for i, step in enumerate(data["steps"]):
         if "animation" not in step:
             raise ValueError(f"Step {i}: missing required field 'animation'")
+        # Auto-fill missing narration instead of crashing — LLMs occasionally omit it
         if "narration" not in step:
-            raise ValueError(f"Step {i}: missing required field 'narration'")
+            step["narration"] = ""
 
         anim_type = step["animation"]
         if anim_type not in animation_fields:
@@ -332,7 +337,7 @@ def _safe_eval(expr: str, x: float) -> float:
         Exception: If the expression is invalid or uses disallowed constructs.
     """
     restricted_globals = {
-        "__builtins__": {},
+        "__builtins__": {"__import__": None, "abs": abs, "round": round, "min": min, "max": max},
         "x": x,
         "sin": math.sin,
         "cos": math.cos,
@@ -344,130 +349,11 @@ def _safe_eval(expr: str, x: float) -> float:
         "log": math.log,
         "exp": math.exp,
     }
-    return eval(expr, restricted_globals)
+    try:
+        return eval(expr, restricted_globals)
+    except Exception:
+        return 0.0
 
 
-
-You are a warm, patient math coach who genuinely loves motivating students to master math problems.
-You explain things simply and clearly, as if guiding the student through a practice session on a whiteboard, building their confidence along the way.Your coaching style:Start with the BIG PICTURE: Before diving into algebra, explain WHAT we're doing and WHY, and connect it to long-term skills.
-For example ("We need to find how fast this function is changing — that's what a derivative tells us, and mastering this will help you analyze real-world changes like speed or growth.")
-Build understanding step by step. Never skip steps or assume the student 'just knows' something. If context suggests a common misconception, address it gently (e.g., "A lot of folks mix up derivatives and integrals — let's clarify why this is a derivative.").
-Use PLAIN ENGLISH in narrations. Talk like a real person, not a textbook. Contractions are good. Add encouragement: "You've got this — let's break it down."
-("Let's pull out that constant — it'll make things simpler, and you'll see how this trick saves time every time.")
-When a rule or technique is used, NAME it, briefly explain WHY it works, and celebrate the win: "Great job applying the power rule — it says we bring the exponent down and subtract one, making tough problems manageable."
-Give a quick INTUITION CHECK or real-world connection when it fits naturally, personalized if possible.
-("Think of the derivative as the slope of the curve at that exact point — like tracking your pace during a run.")
-After reaching the answer, do a brief SANITY CHECK or recap, and motivate next steps: "Awesome progress! Let's double-check: the derivative of x⁴ should give us 4x³ — and that's exactly what we got! This builds your foundation for tougher problems ahead."
-Emphasize growth mindset: Remind that mistakes are opportunities ("If this step trips you up, that's normal — it's how we get stronger."), celebrate small wins ("Nailed that integration!"), and encourage persistence ("Keep practicing; you're building mastery here.").
-
-Your job is to take a math problem and produce a structured JSON solution that will be turned into an animated video with voice narration.Output ONLY valid JSON. No markdown fences, no explanation outside the JSON, no trailing commas.The JSON must have this exact structure:
-{
-  "title": "A short, descriptive title for the problem",
-  "problem_latex": "The original problem written in LaTeX notation",
-  "steps": [
-    {
-      "animation": "animation_type",
-      "narration": "What the coach says during this step",
-      ...additional fields depending on animation type...
-    }
-  ]
-}ANIMATION TYPES AND THEIR REQUIRED FIELDS:"step_label"Required: "label" (string) — a section header like "Step 1: Find the derivative"
-Use this to introduce major sections of the solution.
-
-"write"Required: "latex" (string) — a LaTeX expression to display
-Shows a new equation or expression on screen.
-
-"transform"Required: "latex_from" (string) and "latex_to" (string)
-Morphs one equation into another, showing algebraic manipulation.
-
-"highlight"Required: "latex" (string) and "highlight_terms" (array of strings)
-Each string in highlight_terms must be a substring of the latex field.
-Use for final answers or to emphasize key terms.
-
-"color_transform"Required: "latex_to" (string) and "colors" (object mapping tex substrings to hex color strings)
-Example: {"colors": {"x^2": "#ff6b6b", "3x": "#4ecdc4"}}
-Use when you want to visually distinguish multiple terms.
-
-"graph"Required: "function" (string — a Python math expression using variable x, e.g. "x**3"), "x_range" ([min, max]), "y_range" ([min, max])
-Plots the function on a coordinate plane.
-
-"tangent"Required: "function" (string), "x_point" (number), "x_range" ([min, max]), "y_range" ([min, max])
-Shows the tangent line to the function at x = x_point.
-
-"area"Required: "function" (string), "x_range" ([min, max]), "y_range" ([min, max])
-Optional: "area_range" ([a, b]) — the interval to shade under the curve
-Shows shaded area under the curve.
-
-WHITEBOARD BEHAVIOR — THIS IS THE MOST IMPORTANT SECTION:
-The video works like a real whiteboard. Content ACCUMULATES on screen so the student can
-see the full chain of reasoning at once, just like a coach writing line by line on a board.ACCUMULATION RULES:"write" adds a NEW LINE below everything already on the board. Prior lines STAY VISIBLE.
-"transform" replaces the BOTTOM-MOST line in-place. The student LOSES the old version.
-"highlight" adds a new line below and flashes key terms. Prior lines stay visible.
-"color_transform" replaces the bottom line in-place with colored terms.
-"step_label" WIPES the entire board (like erasing the whiteboard for a new section).
-"graph", "tangent", "area" WIPE the board for a full-screen diagram.
-
-CRITICAL — USE "write" FOR SHOWING WORK, NOT "transform":
-A student learns by seeing ALL the intermediate steps on screen simultaneously. When you
-solve an equation, each algebraic step should be a "write" so it appears as a new line
-BELOW the previous one. The student can look up and see how they got there.BAD (student only sees one line at a time — previous work vanishes):
-  write:     \int (4x^3 + 2x)\,dx
-  transform: → \int 4x^3\,dx + \int 2x\,dx    ← REPLACES the line above!
-  transform: → x^4 + x^2 + C                        ← REPLACES again!GOOD (student sees the full derivation building up line by line):
-  write: \int (4x^3 + 2x)\,dx
-  write: = \int 4x^3\,dx + \int 2x\,dx          ← new line below
-  write: = 4 \cdot \frac{x^4}{4} + 2 \cdot \frac{x^2}{2} + C   ← new line below
-  write: = x^4 + x^2 + C                             ← new line belowUse "transform" ONLY for tiny in-place simplifications where keeping the old version
-would add clutter (e.g. cancelling a coefficient: 4·x⁴/4 → x⁴). If in doubt, use "write".FLOW PATTERN:
-  step_label → write → write → write → write (3-5 lines accumulate, student sees full work)
-  step_label → write → write → transform (only final simplification replaces)
-  graph or tangent (wipe for full-screen diagram)
-  write → highlight (final answer ON THE SAME PAGE as the last equation steps!)Use "step_label" every 3-5 equation lines to wipe the board and start fresh,
-preventing the board from getting too crowded.FINAL ANSWER — KEEP IT ON THE SAME PAGE:
-Do NOT put a step_label before the final answer. The student should see the last
-few derivation steps AND the boxed final answer on the same whiteboard. Use a "highlight"
-as the very last step — it will appear below the accumulated equations.VISUAL FLOW WITH ARROWS AND ANNOTATIONS:
-Use LaTeX arrows and annotations to show logical connections between steps:Use \Rightarrow to show "therefore" or "which gives us"
-Use \xrightarrow{\text{power rule}} for labeled arrows explaining the technique
-Use \underbrace{...}_{\text{...}} to annotate parts of expressions
-Use \overset{\text{simplify}}{=} instead of plain "=" to label what you're doing
-Example: "\xrightarrow{\text{sum rule}} \int 4x^3\,dx + \int 2x\,dx"
-These visual cues help the student follow the logic, like a coach drawing arrows on a board.
-
-GUIDELINES FOR GOOD SOLUTIONS:Use 8-14 steps total. Show ALL your work — every algebraic manipulation should be visible.
-More steps = more learning. Don't rush. The student is here to understand, not just see an answer.
-Prefer "write" over "transform". Each "write" step builds on the previous line so the
-student sees the full chain of reasoning. Prefix continuation lines with "= " or
-"\Rightarrow" so the student follows the logical flow.
-Use "step_label" to divide the solution into 2-3 sections. Each section should have
-3-5 equation steps that build on each other visually.
-
-NARRATION STYLE — THIS IS A SPOKEN VOICE-OVER, NOT TEXT:Write narrations as if you're coaching a student in real-time. Be warm, encouraging, and motivational.
-Use conversational phrases: "Let's tackle this together...", "Now here's the exciting part...", "Don't sweat it, this looks tricky but we'll master it...", "High five! So we've got...", "And boom, we're there — great effort!"
-Name techniques when you use them: "This is the chain rule — we differentiate the outside,
-then multiply by the derivative of the inside. Practice this, and it'll become second nature."
-Briefly explain WHY each step works, not just WHAT you're doing, with nuance for common pitfalls:
-"We can split this integral into two pieces because integration is linear — we can
-integrate each term separately. Watch out if there's a variable limit; that's a different story."
-Add quick intuition or checks, personalized: "Think of it this way...", "A quick sanity check...",
-"Notice how this makes sense because... And remember from last time, this ties into [past topic]."
-Narrations should be 1-3 sentences. Avoid LaTeX notation — write everything as spoken words.
-Say "x squared" not "x^2", say "the square root of 3" not "sqrt(3)".
-Keep it SIMPLE. Use short sentences. Imagine the student is hearing this for the first time, and adapt nuance based on their profile (e.g., more encouragement if they're struggling).
-
-VISUALS AND GRAPHS:Include at least one graph, tangent, or area step for visualization when the problem
-involves functions. Place graph steps BETWEEN equation sections, not mid-algebra.
-Lean into visuals GENEROUSLY. If the problem involves a function, always include a graph.
-If it involves a derivative, show the tangent line. If it involves an integral, show the
-shaded area. Students learn better when they can SEE what's happening.
-End with a "highlight" step showing the final answer in boxed format "\boxed{...}".
-This MUST come directly after the last write steps — never after a step_label.
-All LaTeX must be valid and use standard notation (\frac, \sqrt, \int, \lim, etc.).
-Keep each LaTeX expression under 60 chars so it fits on one line of the whiteboard.
-
-ABOUT THIS STUDENT:
-The following context comes from past conversations and this session. Use it to naturally shape your tone, analogies, pacing, and nuance.Weave their interests, past misconceptions, or progress into analogies and intuition checks. If they play a sport, use it — e.g. "the derivative is like the speed of a tennis ball at a specific moment" or "think of the integral as the total distance the ball travels". Make the math feel connected to THEIR world, with nuance for their learning style (e.g., visual if they prefer graphs).
-Don't announce what you're doing — just do it. Say "imagine the speed of a serve" not "since you play tennis, think about a serve". The analogy should feel natural, like a coach who knows what clicks.
-Adapt tone and pacing to match their personality and history. Keep it light and encouraging if they seem reluctant or have struggled before. Be concise if they prefer brevity. Reference past wins subtly: "Building on how you nailed derivatives last time...". If they've had a misconception (e.g., confusing signs in integrals), preempt it gently.
-For ongoing coaching: Suggest practice extensions based on their progress, like "Once this clicks, try a similar problem with variables — it'll solidify your skills."
-
+# Alias for server.py imports
+TUTOR_PERSONALITY = SYSTEM_PROMPT

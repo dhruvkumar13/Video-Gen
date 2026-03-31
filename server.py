@@ -80,12 +80,16 @@ def _chat_reply(messages, student_memory=""):
     for m in messages:
         gpt_msgs.append({"role": m["role"], "content": m["content"]})
 
-    response = _oai.chat.completions.create(
-        model="gpt-5.3-chat-latest",
-        max_completion_tokens=256,
-        messages=gpt_msgs,
-    )
-    return response.choices[0].message.content
+    try:
+        response = _oai.chat.completions.create(
+            model="gpt-5.3-chat-latest",
+            max_completion_tokens=256,
+            messages=gpt_msgs,
+        )
+        return response.choices[0].message.content
+    except Exception as e:
+        logging.error("Chat API error: %s", e)
+        return "Sorry, I'm having trouble connecting right now. Please try again in a moment."
 
 
 def _extract_question(messages):
@@ -198,7 +202,7 @@ def _check_cancel(job_id):
         raise InterruptedError("Job cancelled by user")
 
 
-def _run_pipeline(job_id, question_text, renderer="manim", student_id=None, chat_history=None):
+def _run_pipeline(job_id, question_text, renderer="manim", student_id=None, chat_history=None, preset=None, active_overrides=None):
     job_dir = os.path.join(JOBS_DIR, job_id)
     try:
         # Step 0: Fetch student preferences from mem0
@@ -232,7 +236,7 @@ def _run_pipeline(job_id, question_text, renderer="manim", student_id=None, chat
                 _update_status(job_id, "solving", "Solution ready!", 20)
 
         _update_status(job_id, "solving", "Tutor is planning the lesson...", 5)
-        solution = generate_solution(question_text, preferences=prefs, chat_context=chat_context, progress_cb=_progress_cb)
+        solution = generate_solution(question_text, preferences=prefs, chat_context=chat_context, preset=preset, active_overrides=active_overrides, progress_cb=_progress_cb)
 
         _check_cancel(job_id)
 
@@ -413,9 +417,11 @@ def api_chat_generate(chat_id):
     if not question:
         return jsonify({"error": "No question found in chat"}), 400
 
-    # Renderer choice from request body (default: manim)
+    # Options from request body
     body = request.get_json(silent=True) or {}
     renderer = body.get("renderer", "manim")
+    preset = body.get("preset", None)
+    active_overrides = body.get("overrides", None)
 
     # Create a new job_id for each generation (allows multiple videos per chat)
     job_id = str(uuid.uuid4())
@@ -439,7 +445,7 @@ def api_chat_generate(chat_id):
     student_id = _get_student_id()
     chat_history = chat_data.get("messages", [])
 
-    thread = threading.Thread(target=_run_pipeline, args=(job_id, question, renderer, student_id, chat_history))
+    thread = threading.Thread(target=_run_pipeline, args=(job_id, question, renderer, student_id, chat_history, preset, active_overrides))
     thread.daemon = True
     thread.start()
 
@@ -449,15 +455,14 @@ def api_chat_generate(chat_id):
 @app.route("/api/chat/<chat_id>/cancel", methods=["POST"])
 def api_chat_cancel(chat_id):
     """Cancel an in-progress video generation."""
-    status_path = os.path.join(JOBS_DIR, chat_id, "status.json")
-    if not os.path.exists(status_path):
-        return jsonify({"error": "Job not found"}), 404
+    body = request.get_json(silent=True) or {}
+    job_id = body.get("job_id", chat_id)  # Use job_id from body, fallback to chat_id
 
     with _cancel_lock:
-        _cancelled_jobs.add(chat_id)
+        _cancelled_jobs.add(job_id)
 
-    logging.info("Cancel requested for job %s", chat_id)
-    return jsonify({"ok": True, "job_id": chat_id})
+    logging.info("Cancel requested for job %s", job_id)
+    return jsonify({"ok": True, "job_id": job_id})
 
 
 # ── Legacy + Pipeline Endpoints ───────────────────────────────────
@@ -838,34 +843,55 @@ HTML_PAGE = r"""<!DOCTYPE html>
             box-shadow: 0 1px 2px rgba(0,0,0,0.06);
         }
 
-        /* ── Preferences Panel ──────────── */
-        .prefs-panel {
-            background: #ffffff;
-            border-bottom: 1px solid #e2e8f0;
-            max-height: 0;
-            overflow: hidden;
-            transition: max-height 0.3s ease, padding 0.3s ease;
-            padding: 0 1.5rem;
+        /* ── Inline Preferences (below Generate button) ── */
+        .inline-prefs {
+            margin-top: 10px;
+            text-align: center;
         }
 
-        .prefs-panel.open {
-            max-height: 160px;
-            padding: 0.8rem 1.5rem;
+        .preset-selector {
+            margin-bottom: 10px;
         }
 
-        .prefs-row {
+        .preset-label {
+            font-size: 13px;
+            color: #64748b;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        .preset-row {
             display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 0.5rem;
+            gap: 6px;
+            justify-content: center;
+            flex-wrap: wrap;
         }
 
-        .prefs-row label {
-            font-size: 0.72rem;
-            color: #94a3b8;
-            text-transform: uppercase;
-            letter-spacing: 1.2px;
+        .preset-btn {
+            padding: 6px 14px;
+            border-radius: 20px;
+            border: 1.5px solid #e2e8f0;
+            background: white;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: #334155;
+            font-weight: 400;
+        }
+
+        .preset-btn:hover { border-color: #14b8a6; color: #0d9488; }
+        .preset-btn.active {
+            border: 1.5px solid #14b8a6;
+            background: #f0fdfa;
+            color: #14b8a6;
             font-weight: 600;
+        }
+
+        .prefs-toggles {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.4rem;
+            justify-content: center;
         }
 
         .prefs-clear {
@@ -875,18 +901,12 @@ HTML_PAGE = r"""<!DOCTYPE html>
 
         .prefs-clear:hover { color: #ef4444; }
 
-        .prefs-toggles {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.4rem;
-        }
-
         .pref-btn {
             background: #f8fafc;
             border: 1px solid #e2e8f0;
             border-radius: 20px;
             padding: 0.35rem 0.85rem;
-            font-size: 0.8rem;
+            font-size: 0.78rem;
             color: #64748b;
             cursor: pointer;
             transition: all 0.2s;
@@ -1297,27 +1317,9 @@ HTML_PAGE = r"""<!DOCTYPE html>
                 <span class="rt-opt active" data-r="manim" onclick="setRenderer(this)">Manim</span>
                 <span class="rt-opt" data-r="remotion" onclick="setRenderer(this)">Remotion</span>
             </div>
-            <button class="btn-icon" onclick="togglePrefs()">&#9881; Preferences</button>
             <button class="btn-icon" onclick="toggleLibrary()">&#128218; Library</button>
             <button class="btn-new-chat" onclick="newChat()">+ New Chat</button>
         </div>
-    </div>
-
-    <!-- Preferences Panel (collapsible) -->
-    <div class="prefs-panel" id="prefs-panel">
-        <div class="prefs-row">
-            <label>Video style preferences</label>
-            <button class="prefs-clear" onclick="clearPrefs()">reset all</button>
-        </div>
-        <div class="prefs-toggles">
-            <button class="pref-btn" data-key="more_graphs" onclick="togglePref(this)">&#128202; More Graphs</button>
-            <button class="pref-btn" data-key="more_steps" onclick="togglePref(this)">&#128290; More Detail</button>
-            <button class="pref-btn" data-key="simpler" onclick="togglePref(this)">&#128161; Simpler Language</button>
-            <button class="pref-btn" data-key="more_color" onclick="togglePref(this)">&#127912; Color-Coded</button>
-            <button class="pref-btn" data-key="more_examples" onclick="togglePref(this)">&#128221; More Examples</button>
-             <button class="pref-btn" data-key="concise" onclick="togglePref(this)">&#9889; Concise</button>
-             <button class="pref-btn" data-key="more_diagrams" onclick="togglePref(this)">&#128208; More Diagrams</button>
-             </div>        <div class="prefs-status" id="prefs-status"></div>
     </div>
 
     <!-- Chat Area -->
@@ -1356,6 +1358,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
     let ready    = false;
     let generating = false;
     let pollTimer  = null;
+    let currentJobId = null;
     let renderer   = 'manim';
     let studentId  = localStorage.getItem('studentId') || '';
 
@@ -1508,6 +1511,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
     async function generateVideo() {
         if (generating) return;
         generating = true;
+        ready = false;  // Reset so next [READY] from a new question triggers the button again
 
         const genBtn = document.querySelector('.btn-generate-inline');
         if (genBtn) genBtn.disabled = true;
@@ -1516,14 +1520,33 @@ HTML_PAGE = r"""<!DOCTYPE html>
         scrollBottom();
 
         try {
+            var activeOverrides = [];
+            document.querySelectorAll('.pref-btn.active').forEach(function(b) {
+                if (b.dataset.key) activeOverrides.push(b.dataset.key);
+            });
+
             const res  = await fetch('/api/chat/' + chatId + '/generate', {
                 method: 'POST',
                 headers: apiHeaders({ 'Content-Type': 'application/json' }),
-                body: JSON.stringify({ renderer }),
+                body: JSON.stringify({ renderer: renderer, preset: currentPreset, overrides: activeOverrides }),
             });
             const data = await res.json();
+            currentJobId = data.job_id;  // Store for cancel
 
+            let pollCount = 0;
+            const maxPolls = 300; // 10 minutes at 2s intervals
             pollTimer = setInterval(async () => {
+                pollCount++;
+                if (pollCount >= maxPolls) {
+                    clearInterval(pollTimer);
+                    pollTimer = null;
+                    removeProgress();
+                    addBubble('system', 'Generation timed out after 10 minutes. Please try again.');
+                    addGenerateButton();
+                    generating = false;
+                    scrollBottom();
+                    return;
+                }
                 try {
                     const sRes    = await fetch('/api/status/' + data.job_id);
                     const status  = await sRes.json();
@@ -1553,6 +1576,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
                         pollTimer = null;
                         removeProgress();
                         addBubble('system', '\u26a0 ' + (status.error || 'Generation failed'));
+                        addGenerateButton();
                         generating = false;
                         scrollBottom();
                     }
@@ -1578,7 +1602,11 @@ HTML_PAGE = r"""<!DOCTYPE html>
         }
 
         try {
-            await fetch('/api/chat/' + chatId + '/cancel', { method: 'POST', headers: apiHeaders() });
+            await fetch('/api/chat/' + chatId + '/cancel', {
+                method: 'POST',
+                headers: apiHeaders({ 'Content-Type': 'application/json' }),
+                body: JSON.stringify({ job_id: currentJobId }),
+            });
         } catch (e) {
             /* polling will handle the state change */
         }
@@ -1623,15 +1651,56 @@ HTML_PAGE = r"""<!DOCTYPE html>
         if (c) c.remove();
     }
 
+    function buildInlinePrefsHTML() {
+        return '<div class="inline-prefs">' +
+            '<div class="preset-selector">' +
+            '<div class="preset-label">Video Style</div>' +
+            '<div class="preset-row">' +
+            '<button class="preset-btn" data-preset="quick_review">&#9889; Quick Review</button>' +
+            '<button class="preset-btn active" data-preset="standard">&#128214; Standard</button>' +
+            '<button class="preset-btn" data-preset="deep_dive">&#128300; Deep Dive</button>' +
+            '</div></div>' +
+            '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">' +
+            '<span style="font-size:13px;color:#64748b;font-weight:500;">Preferences</span>' +
+            '<button class="prefs-clear" onclick="clearPrefs()">reset all</button>' +
+            '</div>' +
+            '<div class="prefs-toggles">' +
+            '<button class="pref-btn" data-key="more_graphs" onclick="togglePref(this)">&#128202; More Graphs</button>' +
+            '<button class="pref-btn" data-key="more_steps" onclick="togglePref(this)">&#128290; More Detail</button>' +
+            '<button class="pref-btn" data-key="simpler" onclick="togglePref(this)">&#128161; Simpler Language</button>' +
+            '<button class="pref-btn" data-key="more_color" onclick="togglePref(this)">&#127912; Color-Coded</button>' +
+            '<button class="pref-btn" data-key="more_examples" onclick="togglePref(this)">&#128221; More Examples</button>' +
+            '<button class="pref-btn" data-key="concise" onclick="togglePref(this)">&#9889; Concise</button>' +
+            '<button class="pref-btn" data-key="more_diagrams" onclick="togglePref(this)">&#128208; More Diagrams</button>' +
+            '<button class="pref-btn" data-key="show_mistakes" onclick="togglePref(this)">&#127919; Show Mistakes</button>' +
+            '<button class="pref-btn" data-key="recap" onclick="togglePref(this)">&#128203; Recap</button>' +
+            '<button class="pref-btn" data-key="analogies" onclick="togglePref(this)">&#127758; Analogies</button>' +
+            '</div>' +
+            '<div class="prefs-status" id="prefs-status"></div>' +
+            '</div>';
+    }
+
     function addGenerateButton() {
         const wrap = document.createElement('div');
         wrap.style.cssText = 'align-self:flex-start;margin-top:0.2rem;';
+        wrap.className = 'generate-wrap';
         const btn = document.createElement('button');
         btn.className = 'btn-generate-inline';
         btn.textContent = '\u25b6  Generate Video';
         btn.onclick = generateVideo;
         wrap.appendChild(btn);
+
+        var tmp = document.createElement('div');
+        tmp.innerHTML = buildInlinePrefsHTML();
+        wrap.appendChild(tmp.firstChild);
+
         chatArea.appendChild(wrap);
+
+        wrap.querySelectorAll('.pref-btn').forEach(function(b) {
+            if (activePrefs.has(b.dataset.key)) b.classList.add('active');
+        });
+        initPresetButtons(wrap);
+
         scrollBottom();
     }
 
@@ -1712,15 +1781,24 @@ HTML_PAGE = r"""<!DOCTYPE html>
     }
 
     /* ═══════════════════════════════════════════════
-       Preferences
+       Preferences + Presets
     ═══════════════════════════════════════════════ */
     const activePrefs = new Set();
+    let currentPreset = 'standard';
 
-    function togglePrefs() {
-        document.getElementById('prefs-panel').classList.toggle('open');
+    function initPresetButtons(container) {
+        container.querySelectorAll('.preset-btn').forEach(function(pbtn) {
+            pbtn.addEventListener('click', function() {
+                container.querySelectorAll('.preset-btn').forEach(function(b) {
+                    b.classList.remove('active');
+                });
+                pbtn.classList.add('active');
+                currentPreset = pbtn.dataset.preset;
+            });
+        });
     }
 
-    async function togglePref(btn) {
+    function togglePref(btn) {
         const key    = btn.dataset.key;
         const status = document.getElementById('prefs-status');
 
@@ -1728,31 +1806,11 @@ HTML_PAGE = r"""<!DOCTYPE html>
             activePrefs.delete(key);
             btn.classList.remove('active');
             status.textContent = 'Removed (takes effect on next video)';
-            setTimeout(() => status.textContent = '', 2000);
-            return;
+        } else {
+            activePrefs.add(key);
+            btn.classList.add('active');
+            status.textContent = 'Added (takes effect on next video)';
         }
-
-        btn.classList.add('saving');
-        status.textContent = 'Saving...';
-
-        try {
-            const res  = await fetch('/api/preferences', {
-                method: 'POST',
-                headers: apiHeaders({ 'Content-Type': 'application/json' }),
-                body: JSON.stringify({ key }),
-            });
-            const data = await res.json();
-            if (data.ok) {
-                activePrefs.add(key);
-                btn.classList.add('active');
-                status.textContent = '\u2713 Saved';
-            } else {
-                status.textContent = 'Could not save';
-            }
-        } catch (e) {
-            status.textContent = 'Error';
-        }
-        btn.classList.remove('saving');
         setTimeout(() => status.textContent = '', 2000);
     }
 
@@ -1763,27 +1821,35 @@ HTML_PAGE = r"""<!DOCTYPE html>
             await fetch('/api/preferences', { method: 'DELETE', headers: apiHeaders() });
             activePrefs.clear();
             document.querySelectorAll('.pref-btn').forEach(b => b.classList.remove('active'));
+            currentPreset = 'standard';
+            document.querySelectorAll('.preset-btn').forEach(b => {
+                b.style.border = '1.5px solid #e2e8f0';
+                b.style.background = 'white';
+                b.style.color = '#334155';
+                b.style.fontWeight = '400';
+                b.classList.remove('active');
+            });
+            const stdBtn = document.querySelector('.preset-btn[data-preset="standard"]');
+            if (stdBtn) {
+                stdBtn.style.border = '1.5px solid #14b8a6';
+                stdBtn.style.background = '#f0fdfa';
+                stdBtn.style.color = '#14b8a6';
+                stdBtn.style.fontWeight = '600';
+                stdBtn.classList.add('active');
+            }
             status.textContent = '\u2713 Cleared';
         } catch (e) { status.textContent = 'Error'; }
         setTimeout(() => status.textContent = '', 2000);
     }
 
     async function loadPrefs() {
+        // Load mem0 preferences as student profile context (free-text only).
+        // Toggle states are local-only and not restored from mem0.
         try {
             const res  = await fetch('/api/preferences', { headers: apiHeaders() });
             const data = await res.json();
-            if (data.preferences) {
-                const prefText = data.preferences.toLowerCase();
-                const opts     = data.options || {};
-                document.querySelectorAll('.pref-btn').forEach(btn => {
-                    const key  = btn.dataset.key;
-                    const desc = (opts[key] || '').toLowerCase();
-                    if (desc && prefText.includes(desc)) {
-                        btn.classList.add('active');
-                        activePrefs.add(key);
-                    }
-                });
-            }
+            // data.preferences is available for the AI prompt via the generate endpoint;
+            // we no longer try to reconstruct toggle button state from it.
         } catch (e) { /* mem0 unavailable — still works */ }
     }
 

@@ -154,9 +154,37 @@ def clear_preferences(user_id: str = None) -> bool:
         return False
 
 
-# ── Predefined preference options ────────────────────────────────
-# These map to the UI toggle buttons on the frontend.
+# ── Preset video style modes ────────────────────────────────
+VIDEO_PRESETS = {
+    "quick_review": {
+        "label": "Quick Review",
+        "description": "I know the basics, just show me the method",
+        "step_range": [6, 8],
+        "min_visuals": 0,
+        "narration_pace": "fast",
+        "tone": "direct",
+    },
+    "standard": {
+        "label": "Standard",
+        "description": "Walk me through it step by step",
+        "step_range": [8, 12],
+        "min_visuals": 1,
+        "narration_pace": "medium",
+        "tone": "warm",
+    },
+    "deep_dive": {
+        "label": "Deep Dive",
+        "description": "Explain everything, I'm learning this for the first time",
+        "step_range": [12, 18],
+        "min_visuals": 2,
+        "narration_pace": "slow",
+        "tone": "encouraging",
+    },
+}
 
+DEFAULT_PRESET = "standard"
+
+# Individual override toggles (applied on top of preset)
 PREFERENCE_OPTIONS = {
     "more_graphs": "Include more graphs and visual plots to illustrate concepts",
     "more_steps": "Break the solution into more detailed, smaller steps",
@@ -164,5 +192,86 @@ PREFERENCE_OPTIONS = {
     "more_color": "Use more color-coded terms to highlight different parts of equations",
     "more_examples": "Include additional examples and analogies",
     "concise": "Keep explanations brief and to the point",
-    "more_diagrams": "Include more diagrams, number lines, and visual illustrations for geometry and inequality problems",
+    "more_diagrams": "Include more diagrams, number lines, and visual illustrations",
+    "show_mistakes": "Show a common mistake before the correct approach",
+    "recap": "Include a verbal recap summarizing key steps at the end",
+    "analogies": "Use real-world analogies to explain abstract concepts",
 }
+
+
+def build_video_requirements(preset_key: str = None, active_overrides: list = None) -> str:
+    """Build structured video requirements string from preset + overrides.
+
+    Args:
+        preset_key: One of "quick_review", "standard", "deep_dive".
+                    Defaults to DEFAULT_PRESET.
+        active_overrides: List of override keys from PREFERENCE_OPTIONS
+                         (e.g. ["more_graphs", "more_color"]).
+
+    Returns:
+        A formatted string of concrete constraints for the AI prompt.
+    """
+    preset = VIDEO_PRESETS.get(preset_key or DEFAULT_PRESET, VIDEO_PRESETS[DEFAULT_PRESET])
+    overrides = active_overrides or []
+
+    lines = []
+    lines.append(f"VIDEO STYLE: {preset['label']} — {preset['description']}")
+
+    # Step count
+    lo, hi = preset["step_range"]
+    if "more_steps" in overrides:
+        lo += 3
+        hi += 4
+    if "concise" in overrides:
+        lo = max(4, lo - 2)
+        hi = max(6, hi - 2)
+    lines.append(f"- Step count: {lo}-{hi} steps total")
+
+    # Visuals
+    min_vis = preset["min_visuals"]
+    if "more_graphs" in overrides:
+        min_vis = max(min_vis, 2)
+    if "more_diagrams" in overrides:
+        min_vis = max(min_vis, 2)
+    if min_vis > 0:
+        lines.append(f"- Include at least {min_vis} visual steps (graph, tangent, area, or diagram)")
+
+    # Color
+    if "more_color" in overrides:
+        lines.append("- Use color_transform animation for at least 2 key equation steps to visually distinguish terms")
+
+    # Narration pace
+    pace = preset["narration_pace"]
+    if "simpler" in overrides:
+        pace = "slow"
+    if "concise" in overrides:
+        pace = "fast"
+    pace_guidance = {
+        "fast": "- Narration: Keep each narration to 1 sentence. Be direct and efficient.",
+        "medium": "- Narration: Use 1-2 sentences per step. Warm and clear.",
+        "slow": "- Narration: Use 2-3 sentences per step. Explain the WHY behind each move. Be patient and encouraging.",
+    }
+    lines.append(pace_guidance.get(pace, pace_guidance["medium"]))
+
+    # Tone
+    tone = preset["tone"]
+    if "simpler" in overrides:
+        tone = "encouraging"
+    tone_guidance = {
+        "direct": "- Tone: Professional and efficient. No filler — just clear explanations.",
+        "warm": "- Tone: Warm and friendly. Use natural conversational phrases.",
+        "encouraging": "- Tone: Extra encouraging. Use phrases like \"You're doing great\", \"This is the tricky part but you've got it\", \"Don't worry, this is easier than it looks\".",
+    }
+    lines.append(tone_guidance.get(tone, tone_guidance["warm"]))
+
+    # Specific overrides
+    if "more_examples" in overrides:
+        lines.append("- Include at least 1 analogy or real-world example in the narration")
+    if "show_mistakes" in overrides:
+        lines.append("- Before a key step, show a COMMON MISTAKE (narrate: \"Now you might be tempted to... but watch what happens\") then show the correct approach")
+    if "recap" in overrides:
+        lines.append("- Include a verbal recap as the second-to-last step, summarizing the key technique and result before the final highlight")
+    if "analogies" in overrides:
+        lines.append("- Weave real-world analogies into narrations naturally (e.g., \"think of the derivative as the speed at that exact moment\")")
+
+    return "\n".join(lines)

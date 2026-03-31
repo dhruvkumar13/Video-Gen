@@ -6,7 +6,7 @@ WRITE_TIME = 2.0
 TRANSFORM_TIME = 2.5
 GRAPH_TIME = 2.0
 MAX_SUBTITLE_WIDTH = 12
-SUBTITLE_FONT = 30         # caption font size (larger for readability)
+SUBTITLE_FONT = 24         # caption font size (larger for readability)
 FADE_OUT_TIME = 0.3        # seconds to fade subtitle out
 
 # Board layout constants
@@ -17,8 +17,10 @@ EQUATION_FONT = 42     # font size for board equations (slightly smaller to fit 
 EQUATION_COLOR = BLACK  # default text/equation color for whiteboard look
 
 # Restricted namespace for safe expression evaluation
+# Python 3.14 requires __import__ in builtins even for basic eval; set to None to block it safely
+_SAFE_BUILTINS = {"__import__": None, "abs": abs, "round": round, "min": min, "max": max}
 _SAFE_GLOBALS = {
-    "__builtins__": {},
+    "__builtins__": _SAFE_BUILTINS,
     "sin": math.sin,
     "cos": math.cos,
     "tan": math.tan,
@@ -34,7 +36,10 @@ _SAFE_GLOBALS = {
 def _safe_eval(expr, x):
     """Evaluate a math expression string with only safe math operations."""
     local_vars = {"x": x}
-    return float(eval(expr, _SAFE_GLOBALS, local_vars))
+    try:
+        return float(eval(expr, _SAFE_GLOBALS, local_vars))
+    except Exception:
+        return 0.0
 
 
 def _make_subtitle(text):
@@ -44,7 +49,7 @@ def _make_subtitle(text):
     that overrides font_size. Instead, creates at the desired font_size
     and only scales down if the result is wider than MAX_SUBTITLE_WIDTH.
     """
-    subtitle = Text(text, font_size=SUBTITLE_FONT, color="#444444")
+    subtitle = Text(text, font_size=SUBTITLE_FONT, color="#333333")
     if subtitle.width > MAX_SUBTITLE_WIDTH:
         subtitle.scale_to_fit_width(MAX_SUBTITLE_WIDTH)
     subtitle.to_edge(DOWN, buff=0.4)
@@ -76,14 +81,17 @@ def _narration_wait(scene, step, elapsed):
 
 
 def _clear_board(scene, board):
-    """Fade out all items on the board and reset cursor position."""
+    """Fade out all items on the board and reset cursor position. Returns time consumed."""
+    elapsed = 0.0
     if board["items"]:
         scene.play(
             *[FadeOut(item) for item in board["items"]],
             run_time=0.4,
         )
+        elapsed = 0.4
     board["items"] = []
     board["next_y"] = BOARD_TOP
+    return elapsed
 
 
 def _place_on_board(mobject, board):
@@ -94,9 +102,9 @@ def _place_on_board(mobject, board):
 
 
 def _scroll_if_needed(scene, board):
-    """If the board cursor is past the bottom, scroll everything up."""
+    """If the board cursor is past the bottom, scroll everything up. Returns time consumed."""
     if board["next_y"] >= BOARD_BOTTOM:
-        return  # still room
+        return 0.0  # still room
 
     # Calculate how much to shift up
     overshoot = BOARD_BOTTOM - board["next_y"] + LINE_SPACING
@@ -108,6 +116,7 @@ def _scroll_if_needed(scene, board):
         run_time=0.5,
     )
     board["next_y"] += overshoot
+    return 0.5
 
 
 # ---------------------------------------------------------------------------
@@ -119,11 +128,11 @@ def write_step(scene, step, board):
     new_tex = MathTex(step["latex"], font_size=EQUATION_FONT, color=EQUATION_COLOR)
     subtitle = _make_subtitle(step["narration"])
 
-    _scroll_if_needed(scene, board)
+    scroll_time = _scroll_if_needed(scene, board)
     _place_on_board(new_tex, board)
 
     scene.play(Write(new_tex), FadeIn(subtitle), run_time=WRITE_TIME)
-    _narration_wait(scene, step, elapsed=WRITE_TIME)
+    _narration_wait(scene, step, elapsed=scroll_time + WRITE_TIME)
     scene.play(FadeOut(subtitle), run_time=FADE_OUT_TIME)
 
 
@@ -168,11 +177,11 @@ def highlight_step(scene, step, board):
     tex = MathTex(step["latex"], font_size=EQUATION_FONT, color=EQUATION_COLOR)
     subtitle = _make_subtitle(step["narration"])
 
-    _scroll_if_needed(scene, board)
+    scroll_time = _scroll_if_needed(scene, board)
     _place_on_board(tex, board)
 
     scene.play(Write(tex), FadeIn(subtitle), run_time=WRITE_TIME)
-    elapsed = WRITE_TIME
+    elapsed = scroll_time + WRITE_TIME
 
     highlight_terms = step.get("highlight_terms", [])
     for term in highlight_terms:
@@ -230,7 +239,7 @@ def color_transform_step(scene, step, board):
 
 def graph_step(scene, step, board):
     """Clear the board and plot a function on full-screen axes."""
-    _clear_board(scene, board)
+    clear_time = _clear_board(scene, board)
     subtitle = _make_subtitle(step["narration"])
 
     axes = Axes(
@@ -245,7 +254,7 @@ def graph_step(scene, step, board):
 
     scene.play(Create(axes), FadeIn(subtitle), run_time=GRAPH_TIME)
     scene.play(Create(graph), run_time=GRAPH_TIME)
-    _narration_wait(scene, step, elapsed=GRAPH_TIME + GRAPH_TIME)
+    _narration_wait(scene, step, elapsed=clear_time + GRAPH_TIME + GRAPH_TIME)
     scene.play(FadeOut(subtitle), run_time=FADE_OUT_TIME)
 
     # Store graph group so next step_label can clear it
@@ -259,7 +268,7 @@ def graph_step(scene, step, board):
 
 def tangent_step(scene, step, board):
     """Clear the board and show a function with tangent line at a point."""
-    _clear_board(scene, board)
+    clear_time = _clear_board(scene, board)
     subtitle = _make_subtitle(step["narration"])
 
     axes = Axes(
@@ -291,7 +300,7 @@ def tangent_step(scene, step, board):
     scene.play(Create(axes), FadeIn(subtitle), run_time=GRAPH_TIME)
     scene.play(Create(graph), run_time=GRAPH_TIME)
     scene.play(Create(tangent_line), FadeIn(dot), run_time=1.0)
-    _narration_wait(scene, step, elapsed=GRAPH_TIME + GRAPH_TIME + 1.0)
+    _narration_wait(scene, step, elapsed=clear_time + GRAPH_TIME + GRAPH_TIME + 1.0)
     scene.play(FadeOut(subtitle), run_time=FADE_OUT_TIME)
 
     board["items"] = [group]
@@ -304,7 +313,7 @@ def tangent_step(scene, step, board):
 
 def area_step(scene, step, board):
     """Clear the board and show a function with shaded area underneath."""
-    _clear_board(scene, board)
+    clear_time = _clear_board(scene, board)
     subtitle = _make_subtitle(step["narration"])
 
     axes = Axes(
@@ -324,7 +333,7 @@ def area_step(scene, step, board):
     scene.play(Create(axes), FadeIn(subtitle), run_time=GRAPH_TIME)
     scene.play(Create(graph), run_time=GRAPH_TIME)
     scene.play(FadeIn(area), run_time=1.0)
-    _narration_wait(scene, step, elapsed=GRAPH_TIME + GRAPH_TIME + 1.0)
+    _narration_wait(scene, step, elapsed=clear_time + GRAPH_TIME + GRAPH_TIME + 1.0)
     scene.play(FadeOut(subtitle), run_time=FADE_OUT_TIME)
 
     board["items"] = [group]
@@ -337,13 +346,13 @@ def area_step(scene, step, board):
 
 def step_label_step(scene, step, board):
     """Wipe the whiteboard clean, show a section label, then clear it."""
-    _clear_board(scene, board)
+    clear_time = _clear_board(scene, board)
 
     label = Text(step["label"], font_size=36, color=BLACK)
     subtitle = _make_subtitle(step["narration"])
 
     scene.play(FadeIn(label), FadeIn(subtitle), run_time=0.8)
-    _narration_wait(scene, step, elapsed=0.8)
+    _narration_wait(scene, step, elapsed=clear_time + 0.8)
     scene.play(FadeOut(label), FadeOut(subtitle), run_time=0.6)
 
     # Board is now empty, ready for new content
@@ -357,7 +366,7 @@ def step_label_step(scene, step, board):
 
 def diagram_step(scene, step, board):
     """Clear the board and display a geometric diagram with labeled shapes."""
-    _clear_board(scene, board)
+    clear_time = _clear_board(scene, board)
     subtitle = _make_subtitle(step["narration"])
 
     shapes_data = step.get("shapes", [])
@@ -442,7 +451,7 @@ def diagram_step(scene, step, board):
 
     scene.play(Create(all_mobjects), FadeIn(subtitle), run_time=GRAPH_TIME)
     scene.play(FadeIn(labels), run_time=0.8)
-    _narration_wait(scene, step, elapsed=GRAPH_TIME + 0.8)
+    _narration_wait(scene, step, elapsed=clear_time + GRAPH_TIME + 0.8)
     scene.play(FadeOut(subtitle), run_time=FADE_OUT_TIME)
 
     board["items"] = [full_group]
@@ -455,7 +464,7 @@ def diagram_step(scene, step, board):
 
 def number_line_step(scene, step, board):
     """Clear the board and display a number line with points and intervals."""
-    _clear_board(scene, board)
+    clear_time = _clear_board(scene, board)
     subtitle = _make_subtitle(step["narration"])
 
     nl_range = step.get("range", [-5, 5])
@@ -522,7 +531,7 @@ def number_line_step(scene, step, board):
             point_labels.add(lbl)
 
     scene.play(Create(number_line), FadeIn(subtitle), run_time=GRAPH_TIME)
-    elapsed = GRAPH_TIME
+    elapsed = clear_time + GRAPH_TIME
 
     if title_text:
         scene.play(FadeIn(all_mobjects[0]), run_time=0.5)
@@ -549,7 +558,7 @@ def number_line_step(scene, step, board):
 
 def annotated_graph_step(scene, step, board):
     """Clear the board and show a function graph with labeled annotations."""
-    _clear_board(scene, board)
+    clear_time = _clear_board(scene, board)
     subtitle = _make_subtitle(step["narration"])
 
     axes = Axes(
@@ -574,7 +583,7 @@ def annotated_graph_step(scene, step, board):
 
     scene.play(Create(axes), FadeIn(subtitle), run_time=GRAPH_TIME)
     scene.play(Create(graph), run_time=GRAPH_TIME)
-    elapsed = GRAPH_TIME + GRAPH_TIME
+    elapsed = clear_time + GRAPH_TIME + GRAPH_TIME
 
     if secondary_graph:
         scene.play(Create(secondary_graph), run_time=GRAPH_TIME)

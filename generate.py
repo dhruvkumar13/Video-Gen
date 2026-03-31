@@ -58,7 +58,7 @@ def render_job(job_dir: str) -> str:
         "scene.py", "TutorialScene",
     ]
 
-    result = subprocess.run(cmd, env=env, capture_output=True, text=True)
+    result = subprocess.run(cmd, env=env, capture_output=True, text=True, timeout=300)
 
     if result.returncode != 0:
         raise RuntimeError(

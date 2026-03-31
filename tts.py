@@ -170,8 +170,16 @@ def _generate_segment(client, text, voice_id, model_id, output_path):
         return None
 
 
+FFMPEG = "/opt/homebrew/bin/ffmpeg"
+INTER_STEP_SILENCE = 0.3  # seconds of silence between TTS segments
+
+
 def _concatenate_segments(segment_paths, output_path):
     """Concatenate multiple MP3 segments into one file using ffmpeg.
+
+    Inserts a short silence gap (INTER_STEP_SILENCE) between each pair of
+    segments so narration doesn't sound rushed and stays aligned with video
+    transitions.
 
     Args:
         segment_paths: List of paths to MP3 segment files
@@ -190,19 +198,35 @@ def _concatenate_segments(segment_paths, output_path):
         shutil.copy2(segment_paths[0], output_path)
         return output_path
 
-    # Create a concat list file for ffmpeg
+    # Generate a short silence segment for inter-step gaps
     list_dir = os.path.dirname(output_path)
+    silence_path = os.path.join(list_dir, "silence.mp3")
+    silence_cmd = [
+        FFMPEG, "-y", "-f", "lavfi", "-i", "anullsrc=r=44100:cl=mono",
+        "-t", str(INTER_STEP_SILENCE), "-q:a", "9", silence_path,
+    ]
+    try:
+        subprocess.run(silence_cmd, capture_output=True, timeout=10)
+    except Exception as e:
+        logger.warning("Could not generate silence segment: %s", e)
+        silence_path = None
+
+    # Create a concat list file for ffmpeg
     list_file = os.path.join(list_dir, "concat_list.txt")
+    abs_silence = os.path.abspath(silence_path) if silence_path and os.path.exists(silence_path) else None
 
     with open(list_file, "w") as f:
-        for seg_path in segment_paths:
+        for i, seg_path in enumerate(segment_paths):
             # ffmpeg concat demuxer requires absolute paths or paths
             # relative to the list file. Use absolute for safety.
             abs_path = os.path.abspath(seg_path)
             f.write(f"file '{abs_path}'\n")
+            # Insert silence between segments (not after the last one)
+            if abs_silence and i < len(segment_paths) - 1:
+                f.write(f"file '{abs_silence}'\n")
 
     cmd = [
-        "/opt/homebrew/bin/ffmpeg",
+        FFMPEG,
         "-y",                    # overwrite output
         "-f", "concat",          # concat demuxer
         "-safe", "0",            # allow absolute paths
@@ -228,9 +252,10 @@ def _concatenate_segments(segment_paths, output_path):
         logger.warning("ffmpeg concat error: %s", e)
         return None
     finally:
-        # Clean up the list file
-        if os.path.exists(list_file):
-            os.remove(list_file)
+        # Clean up the list file and silence file
+        for tmp in [list_file, silence_path]:
+            if tmp and os.path.exists(tmp):
+                os.remove(tmp)
 
 
 def generate_narration(question_data, output_dir):
@@ -261,15 +286,17 @@ def generate_narration(question_data, output_dir):
     model_id = _pick_model(client)
     logger.info("TTS config: voice_id=%s, model_id=%s", voice_id, model_id)
 
-    # Collect narration texts from all steps
+    # Collect narration texts from all steps.
+    # Steps with empty narration get a silence placeholder so the audio
+    # timeline stays aligned with the video (which renders every step).
+    SILENCE_FALLBACK_DURATION = 3.0  # seconds — matches typical visual fallback
     steps = question_data.get("steps", [])
-    narrations = []
+    narrations = []       # (step_index, text_or_None)
     for i, step in enumerate(steps):
         text = step.get("narration", "").strip()
-        if text:
-            narrations.append((i, text))
+        narrations.append((i, text if text else None))
 
-    if not narrations:
+    if not any(text for _, text in narrations):
         logger.warning("No narration text found in solution steps")
         return None, {}
 
@@ -277,11 +304,26 @@ def generate_narration(question_data, output_dir):
     segments_dir = os.path.join(output_dir, "audio_segments")
     os.makedirs(segments_dir, exist_ok=True)
 
-    # Generate segments in parallel (max 4 concurrent to avoid rate limits)
+    # Generate segments in parallel (max 2 concurrent to avoid rate limits).
+    # Steps with no narration text get a silence segment instead.
     successful_segments = []  # list of (index, path) tuples
     step_durations = {}
 
-    logger.info("Generating %d TTS segments in parallel (max_workers=2)...", len(narrations))
+    # Pre-generate a silence segment for empty/failed steps
+    silence_fallback_path = os.path.join(segments_dir, "silence_fallback.mp3")
+    try:
+        subprocess.run([
+            FFMPEG, "-y", "-f", "lavfi", "-i", "anullsrc=r=44100:cl=mono",
+            "-t", str(SILENCE_FALLBACK_DURATION), "-q:a", "9", silence_fallback_path,
+        ], capture_output=True, timeout=10)
+    except Exception as e:
+        logger.warning("Could not generate silence fallback: %s", e)
+        silence_fallback_path = None
+
+    # Count how many real TTS segments we need
+    tts_narrations = [(i, idx, text) for i, (idx, text) in enumerate(narrations) if text]
+    logger.info("Generating %d TTS segments in parallel (max_workers=2), "
+                "%d total steps...", len(tts_narrations), len(narrations))
 
     def _gen_one(i, step_idx, text):
         """Generate one segment and return (i, step_idx, path, duration) or None."""
@@ -292,24 +334,45 @@ def generate_narration(question_data, output_dir):
             return (i, step_idx, segment_path, dur)
         return None
 
+    # Results keyed by narration list index
+    tts_results = {}  # i -> (path, duration)
+
     with ThreadPoolExecutor(max_workers=2) as executor:
         futures = {}
-        for i, (step_idx, text) in enumerate(narrations):
-            future = executor.submit(_gen_one, i, step_idx, text)
-            futures[future] = (i, step_idx)
+        for seq, step_idx, text in tts_narrations:
+            future = executor.submit(_gen_one, seq, step_idx, text)
+            futures[future] = (seq, step_idx)
 
         for future in as_completed(futures):
-            i, step_idx = futures[future]
+            seq, step_idx = futures[future]
             try:
                 result = future.result()
                 if result:
                     idx, sidx, path, dur = result
-                    successful_segments.append((idx, path))
+                    tts_results[idx] = (path, dur)
                     if dur:
                         step_durations[sidx] = dur
                         logger.info("Step %d audio duration: %.2fs", sidx, dur)
             except Exception as e:
                 logger.warning("TTS segment %d failed: %s", step_idx, e)
+
+    # Build the final ordered segment list, inserting silence for missing steps
+    for i, (step_idx, text) in enumerate(narrations):
+        if i in tts_results:
+            path, dur = tts_results[i]
+            successful_segments.append((i, path))
+        else:
+            # Empty narration or failed TTS — insert silence placeholder
+            if silence_fallback_path and os.path.exists(silence_fallback_path):
+                import shutil
+                seg_silence = os.path.join(segments_dir, f"segment_{i:03d}_silence.mp3")
+                shutil.copy2(silence_fallback_path, seg_silence)
+                successful_segments.append((i, seg_silence))
+                step_durations[step_idx] = SILENCE_FALLBACK_DURATION
+                logger.info("Step %d: inserted %.1fs silence placeholder", step_idx,
+                            SILENCE_FALLBACK_DURATION)
+            else:
+                logger.warning("Step %d: no audio and no silence fallback available", step_idx)
 
     if not successful_segments:
         logger.warning("All TTS segments failed, continuing without narration")
