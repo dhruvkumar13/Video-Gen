@@ -166,11 +166,13 @@ NARRATION STYLE — THIS IS A SPOKEN VOICE-OVER, NOT TEXT:
   so it fits on screen without wrapping to tiny text.
 
 VISUALS AND GRAPHS:
-- Include at least one graph, tangent, or area step for visualization when the problem
-  involves functions. Place graph steps BETWEEN equation sections, not mid-algebra.
+- Include at least TWO visual steps (graph, tangent, or area) for ANY problem that involves
+  functions, derivatives, or integrals. Visuals are critical for learning. Place graph steps BETWEEN equation sections, not mid-algebra.
 - Lean into visuals GENEROUSLY. If the problem involves a function, always include a graph.
   If it involves a derivative, show the tangent line. If it involves an integral, show the
   shaded area. Students learn better when they can SEE what's happening.
+- Use "color_transform" at least once per solution to highlight different terms in distinct
+  colors. This helps students see which parts of an expression correspond to which concepts.
 - End with a "highlight" step showing the final answer in boxed format "\\boxed{...}".
   This MUST come directly after the last write steps — never after a step_label.
 - All LaTeX must be valid and use standard notation (\\frac, \\sqrt, \\int, \\lim, etc.).

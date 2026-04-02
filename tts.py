@@ -7,6 +7,7 @@ then concatenates into a single audio track using ffmpeg.
 
 import os
 import json
+import shutil
 import subprocess
 import logging
 from pathlib import Path
@@ -107,7 +108,7 @@ def _pick_model(client):
 def _get_audio_duration(file_path):
     """Get the duration of an audio file in seconds using ffprobe."""
     cmd = [
-        "/opt/homebrew/bin/ffprobe",
+        shutil.which("ffprobe") or "/opt/homebrew/bin/ffprobe",
         "-v", "quiet",
         "-show_entries", "format=duration",
         "-of", "default=noprint_wrappers=1:nokey=1",
@@ -170,7 +171,7 @@ def _generate_segment(client, text, voice_id, model_id, output_path):
         return None
 
 
-FFMPEG = "/opt/homebrew/bin/ffmpeg"
+FFMPEG = shutil.which("ffmpeg") or "/opt/homebrew/bin/ffmpeg"
 INTER_STEP_SILENCE = 0.3  # seconds of silence between TTS segments
 
 

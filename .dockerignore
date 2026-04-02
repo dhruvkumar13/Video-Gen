@@ -1,0 +1,17 @@
+.env
+.git
+.claude
+.playwright-mcp
+.vscode
+.idea
+.vercel
+__pycache__
+*.pyc
+media/
+jobs/
+remotion/node_modules/
+remotion/dist/
+remotion/out/
+remotion/bundle/
+.DS_Store
+*.md

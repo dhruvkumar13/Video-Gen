@@ -1,5 +1,18 @@
 from manim import *
 import math
+import logging
+
+_log = logging.getLogger(__name__)
+
+
+def _safe_mathtex(latex, **kwargs):
+    """Create a MathTex object, falling back to plain Text if LaTeX fails to compile."""
+    try:
+        return MathTex(latex, **kwargs)
+    except Exception as e:
+        _log.warning("LaTeX compilation failed for '%s': %s — falling back to Text", latex[:60], e)
+        fallback = Text(latex[:80], font_size=kwargs.get("font_size", 36), color=kwargs.get("color", BLACK))
+        return fallback
 
 # Duration constants (seconds)
 WRITE_TIME = 2.0
@@ -125,7 +138,7 @@ def _scroll_if_needed(scene, board):
 
 def write_step(scene, step, board):
     """Write new LaTeX on the whiteboard below existing content."""
-    new_tex = MathTex(step["latex"], font_size=EQUATION_FONT, color=EQUATION_COLOR)
+    new_tex = _safe_mathtex(step["latex"], font_size=EQUATION_FONT, color=EQUATION_COLOR)
     subtitle = _make_subtitle(step["narration"])
 
     scroll_time = _scroll_if_needed(scene, board)
@@ -142,7 +155,7 @@ def write_step(scene, step, board):
 
 def transform_step(scene, step, board):
     """Transform the most recent equation into a new one, keeping position."""
-    new_tex = MathTex(step["latex_to"], font_size=EQUATION_FONT, color=EQUATION_COLOR)
+    new_tex = _safe_mathtex(step["latex_to"], font_size=EQUATION_FONT, color=EQUATION_COLOR)
     subtitle = _make_subtitle(step["narration"])
 
     if board["items"]:
@@ -174,7 +187,7 @@ def transform_step(scene, step, board):
 
 def highlight_step(scene, step, board):
     """Write LaTeX on the board then highlight specific terms."""
-    tex = MathTex(step["latex"], font_size=EQUATION_FONT, color=EQUATION_COLOR)
+    tex = _safe_mathtex(step["latex"], font_size=EQUATION_FONT, color=EQUATION_COLOR)
     subtitle = _make_subtitle(step["narration"])
 
     scroll_time = _scroll_if_needed(scene, board)
@@ -206,12 +219,15 @@ def highlight_step(scene, step, board):
 
 def color_transform_step(scene, step, board):
     """Transform the most recent equation with color-coded terms."""
-    new_tex = MathTex(step["latex_to"], font_size=EQUATION_FONT, color=EQUATION_COLOR)
+    new_tex = _safe_mathtex(step["latex_to"], font_size=EQUATION_FONT, color=EQUATION_COLOR)
     subtitle = _make_subtitle(step["narration"])
 
     colors = step.get("colors", {})
     for tex_str, hex_color in colors.items():
-        new_tex.set_color_by_tex(tex_str, hex_color)
+        try:
+            new_tex.set_color_by_tex(tex_str, hex_color)
+        except Exception:
+            pass  # some tex substrings may not match exactly
 
     if board["items"]:
         old_tex = board["items"][-1]

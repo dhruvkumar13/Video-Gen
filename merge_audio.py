@@ -13,8 +13,9 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-FFMPEG = "/opt/homebrew/bin/ffmpeg"
-FFPROBE = "/opt/homebrew/bin/ffprobe"
+import shutil
+FFMPEG = shutil.which("ffmpeg") or "/opt/homebrew/bin/ffmpeg"
+FFPROBE = shutil.which("ffprobe") or "/opt/homebrew/bin/ffprobe"
 
 # Background music volume relative to narration (0.0 = silent, 1.0 = same volume)
 BG_MUSIC_VOLUME = 0.12

@@ -640,12 +640,13 @@ HTML_PAGE = r"""<!DOCTYPE html>
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-            background: #f8fafc;
-            color: #0f172a;
+            background: linear-gradient(160deg, #0a0a0f 0%, #1a1a2e 100%);
+            color: #e2e8f0;
             height: 100vh;
             display: flex;
             flex-direction: column;
             overflow: hidden;
+            font-weight: 300;
         }
 
         /* ── Name Prompt Overlay ────────── */
@@ -653,7 +654,8 @@ HTML_PAGE = r"""<!DOCTYPE html>
             display: none;
             position: fixed;
             inset: 0;
-            background: rgba(15, 23, 42, 0.5);
+            background: rgba(5, 5, 15, 0.85);
+            backdrop-filter: blur(8px);
             z-index: 1000;
             align-items: center;
             justify-content: center;
@@ -661,23 +663,26 @@ HTML_PAGE = r"""<!DOCTYPE html>
         .name-overlay.open { display: flex; }
 
         .name-modal {
-            background: #ffffff;
-            border-radius: 16px;
+            background: rgba(255,255,255,0.06);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 20px;
             padding: 2.5rem 2rem;
-            max-width: 400px;
+            max-width: 420px;
             width: 90%;
             text-align: center;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+            box-shadow: 0 20px 60px rgba(0,0,0,0.4), 0 0 40px rgba(0,212,255,0.06);
         }
         .name-modal-icon { font-size: 2.5rem; margin-bottom: 0.5rem; }
         .name-modal h2 {
             font-size: 1.3rem;
-            color: #0f172a;
+            color: #e2e8f0;
             margin: 0 0 0.5rem;
+            font-weight: 600;
         }
         .name-modal p {
             font-size: 0.9rem;
-            color: #64748b;
+            color: rgba(255,255,255,0.5);
             margin: 0 0 1.2rem;
             line-height: 1.4;
         }
@@ -688,24 +693,28 @@ HTML_PAGE = r"""<!DOCTYPE html>
         .name-input-row input {
             flex: 1;
             padding: 0.6rem 0.8rem;
-            border: 1.5px solid #e2e8f0;
-            border-radius: 8px;
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 10px;
             font-size: 0.95rem;
             outline: none;
+            background: rgba(255,255,255,0.05);
+            color: #e2e8f0;
         }
-        .name-input-row input:focus { border-color: #14b8a6; }
+        .name-input-row input:focus { border-color: #00d4ff; box-shadow: 0 0 12px rgba(0,212,255,0.15); }
+        .name-input-row input::placeholder { color: rgba(255,255,255,0.3); }
         .name-input-row button {
             padding: 0.6rem 1.2rem;
-            background: #14b8a6;
+            background: linear-gradient(135deg, #00d4ff, #7c3aed);
             color: #ffffff;
             border: none;
-            border-radius: 8px;
+            border-radius: 10px;
             font-weight: 600;
             font-size: 0.9rem;
             cursor: pointer;
             white-space: nowrap;
+            transition: opacity 0.2s;
         }
-        .name-input-row button:hover { background: #0d9488; }
+        .name-input-row button:hover { opacity: 0.9; }
 
         .student-wrapper {
             position: relative;
@@ -713,23 +722,25 @@ HTML_PAGE = r"""<!DOCTYPE html>
         .student-badge {
             font-size: 0.78rem;
             font-weight: 600;
-            color: #0d9488;
-            background: #f0fdfa;
+            color: #00d4ff;
+            background: rgba(0,212,255,0.1);
             padding: 0.25rem 0.6rem;
             border-radius: 12px;
-            border: 1px solid #99f6e4;
+            border: 1px solid rgba(0,212,255,0.25);
             cursor: pointer;
+            transition: all 0.2s;
         }
-        .student-badge:hover { background: #e0f7f3; }
+        .student-badge:hover { background: rgba(0,212,255,0.18); }
         .switch-menu {
             display: none;
             position: absolute;
             top: calc(100% + 6px);
             right: 0;
-            background: #fff;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            box-shadow: 0 4px 16px rgba(0,0,0,.1);
+            background: rgba(20,20,40,0.95);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 10px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
             padding: 0.5rem;
             z-index: 100;
             min-width: 160px;
@@ -737,7 +748,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
         .switch-menu.open { display: block; }
         .switch-menu-label {
             font-size: 0.7rem;
-            color: #94a3b8;
+            color: rgba(255,255,255,0.4);
             text-transform: uppercase;
             letter-spacing: 0.04em;
             padding: 0.2rem 0.4rem 0.4rem;
@@ -749,33 +760,35 @@ HTML_PAGE = r"""<!DOCTYPE html>
             border: none;
             padding: 0.4rem 0.5rem;
             font-size: 0.82rem;
-            color: #334155;
-            border-radius: 4px;
+            color: rgba(255,255,255,0.7);
+            border-radius: 6px;
             cursor: pointer;
         }
-        .switch-menu button:hover { background: #f1f5f9; }
+        .switch-menu button:hover { background: rgba(255,255,255,0.08); color: #e2e8f0; }
 
         /* ── Header ─────────────────────── */
         .header {
-            background: #ffffff;
+            background: rgba(255,255,255,0.03);
+            backdrop-filter: blur(12px);
             padding: 0.75rem 1.5rem;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+            box-shadow: 0 1px 20px rgba(0,212,255,0.04);
             flex-shrink: 0;
             z-index: 10;
         }
 
         .header h1 {
             font-size: 1.1rem;
-            color: #0f172a;
-            font-weight: 700;
+            color: #e2e8f0;
+            font-weight: 600;
             white-space: nowrap;
             margin-right: 0.5rem;
         }
 
-        .header h1 span { color: #14b8a6; }
+        .header h1 span { color: #00d4ff; text-shadow: 0 0 12px rgba(0,212,255,0.4); }
 
         .header-actions {
             display: flex;
@@ -786,9 +799,9 @@ HTML_PAGE = r"""<!DOCTYPE html>
         }
 
         .btn-icon {
-            background: #ffffff;
-            border: 1px solid #e2e8f0;
-            color: #64748b;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: rgba(255,255,255,0.6);
             border-radius: 8px;
             padding: 0.4rem 0.85rem;
             font-size: 0.8rem;
@@ -797,10 +810,10 @@ HTML_PAGE = r"""<!DOCTYPE html>
             font-weight: 500;
         }
 
-        .btn-icon:hover { border-color: #14b8a6; color: #0d9488; background: #f0fdfa; }
+        .btn-icon:hover { border-color: rgba(0,212,255,0.4); color: #00d4ff; background: rgba(0,212,255,0.08); }
 
         .btn-new-chat {
-            background: #14b8a6;
+            background: linear-gradient(135deg, #00d4ff, #7c3aed);
             border: none;
             color: #ffffff;
             border-radius: 8px;
@@ -811,15 +824,15 @@ HTML_PAGE = r"""<!DOCTYPE html>
             font-weight: 600;
         }
 
-        .btn-new-chat:hover { background: #0d9488; }
+        .btn-new-chat:hover { opacity: 0.9; box-shadow: 0 0 16px rgba(0,212,255,0.2); }
 
         /* ── Renderer Toggle ────────────── */
         .renderer-toggle {
             display: flex;
             align-items: center;
             gap: 0.25rem;
-            background: #f1f5f9;
-            border: 1px solid #e2e8f0;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
             border-radius: 8px;
             padding: 0.2rem;
             font-size: 0.78rem;
@@ -829,99 +842,151 @@ HTML_PAGE = r"""<!DOCTYPE html>
             padding: 0.28rem 0.65rem;
             border-radius: 6px;
             cursor: pointer;
-            color: #94a3b8;
+            color: rgba(255,255,255,0.4);
             transition: all 0.2s;
             user-select: none;
             font-weight: 500;
         }
 
-        .renderer-toggle .rt-opt:hover { color: #64748b; }
+        .renderer-toggle .rt-opt:hover { color: rgba(255,255,255,0.7); }
 
         .renderer-toggle .rt-opt.active {
-            background: #ffffff;
-            color: #0f172a;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+            background: rgba(0,212,255,0.15);
+            color: #00d4ff;
+            box-shadow: 0 0 8px rgba(0,212,255,0.1);
         }
 
-        /* ── Inline Preferences (below Generate button) ── */
-        .inline-prefs {
-            margin-top: 10px;
-            text-align: center;
+        /* ── Wizard: Preset Cards ────────── */
+        .wizard-section {
+            margin-top: 0.6rem;
+            animation: fadeIn 0.35s ease;
         }
 
-        .preset-selector {
-            margin-bottom: 10px;
-        }
-
-        .preset-label {
-            font-size: 13px;
-            color: #64748b;
-            margin-bottom: 8px;
-            font-weight: 500;
-        }
-
-        .preset-row {
-            display: flex;
-            gap: 6px;
-            justify-content: center;
-            flex-wrap: wrap;
-        }
-
-        .preset-btn {
-            padding: 6px 14px;
-            border-radius: 20px;
-            border: 1.5px solid #e2e8f0;
-            background: white;
-            font-size: 12px;
-            cursor: pointer;
-            transition: all 0.2s;
-            color: #334155;
+        .wizard-label {
+            font-size: 0.88rem;
+            color: rgba(255,255,255,0.6);
+            margin-bottom: 0.6rem;
             font-weight: 400;
         }
 
-        .preset-btn:hover { border-color: #14b8a6; color: #0d9488; }
-        .preset-btn.active {
-            border: 1.5px solid #14b8a6;
-            background: #f0fdfa;
-            color: #14b8a6;
-            font-weight: 600;
+        .preset-cards {
+            display: flex;
+            gap: 0.6rem;
+            flex-wrap: wrap;
         }
 
-        .prefs-toggles {
+        .preset-card {
+            flex: 1;
+            min-width: 130px;
+            max-width: 200px;
+            padding: 0.9rem 0.8rem;
+            background: rgba(255,255,255,0.04);
+            backdrop-filter: blur(8px);
+            border: 1.5px solid rgba(255,255,255,0.08);
+            border-radius: 14px;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            text-align: center;
+        }
+
+        .preset-card:hover {
+            border-color: rgba(0,212,255,0.3);
+            background: rgba(0,212,255,0.06);
+        }
+
+        .preset-card.active {
+            border-color: #00d4ff;
+            background: rgba(0,212,255,0.1);
+            box-shadow: 0 0 20px rgba(0,212,255,0.15);
+        }
+
+        .preset-card-icon {
+            font-size: 1.6rem;
+            margin-bottom: 0.35rem;
+            display: block;
+        }
+
+        .preset-card-name {
+            font-size: 0.85rem;
+            color: #e2e8f0;
+            font-weight: 600;
+            margin-bottom: 0.2rem;
+        }
+
+        .preset-card-desc {
+            font-size: 0.72rem;
+            color: rgba(255,255,255,0.4);
+            line-height: 1.3;
+        }
+
+        /* ── Wizard: Override Chips ────────── */
+        .override-chips {
             display: flex;
             flex-wrap: wrap;
             gap: 0.4rem;
-            justify-content: center;
+            margin-top: 0.1rem;
         }
 
-        .prefs-clear {
-            background: none; border: none; color: #94a3b8;
-            font-size: 0.72rem; cursor: pointer; text-decoration: underline;
-        }
-
-        .prefs-clear:hover { color: #ef4444; }
-
-        .pref-btn {
-            background: #f8fafc;
-            border: 1px solid #e2e8f0;
+        .override-chip {
+            padding: 0.32rem 0.75rem;
             border-radius: 20px;
-            padding: 0.35rem 0.85rem;
+            border: 1px solid rgba(255,255,255,0.1);
+            background: rgba(255,255,255,0.04);
             font-size: 0.78rem;
-            color: #64748b;
+            color: rgba(255,255,255,0.55);
             cursor: pointer;
             transition: all 0.2s;
+            font-weight: 400;
+            user-select: none;
+        }
+
+        .override-chip:hover {
+            border-color: rgba(0,212,255,0.3);
+            color: rgba(255,255,255,0.8);
+        }
+
+        .override-chip.active {
+            background: rgba(0,212,255,0.15);
+            border-color: #00d4ff;
+            color: #00d4ff;
+            box-shadow: 0 0 10px rgba(0,212,255,0.12);
             font-weight: 500;
         }
 
-        .pref-btn:hover { border-color: #14b8a6; color: #0d9488; }
-        .pref-btn.active { background: #f0fdfa; border-color: #14b8a6; color: #0d9488; }
-        .pref-btn.saving { opacity: 0.5; pointer-events: none; }
+        /* ── Generate Button (wizard) ──── */
+        .btn-generate-wizard {
+            background: linear-gradient(135deg, #00d4ff, #7c3aed);
+            color: #ffffff;
+            border: none;
+            border-radius: 14px;
+            padding: 0.85rem 2.4rem;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: inline-block;
+            letter-spacing: 0.02em;
+            animation: subtlePulse 3s ease-in-out infinite;
+            box-shadow: 0 0 24px rgba(0,212,255,0.2);
+        }
 
-        .prefs-status {
-            font-size: 0.72rem;
-            color: #14b8a6;
-            margin-top: 0.3rem;
-            height: 1em;
+        .btn-generate-wizard:hover {
+            opacity: 0.92;
+            box-shadow: 0 0 32px rgba(0,212,255,0.3);
+            transform: translateY(-1px);
+        }
+
+        .btn-generate-wizard:disabled {
+            background: rgba(255,255,255,0.1);
+            color: rgba(255,255,255,0.3);
+            cursor: not-allowed;
+            animation: none;
+            box-shadow: none;
+        }
+
+        @keyframes subtlePulse {
+            0%, 100% { box-shadow: 0 0 24px rgba(0,212,255,0.2); }
+            50% { box-shadow: 0 0 32px rgba(0,212,255,0.35), 0 0 8px rgba(124,58,237,0.2); }
         }
 
         /* ── Chat Area ──────────────────── */
@@ -932,12 +997,12 @@ HTML_PAGE = r"""<!DOCTYPE html>
             display: flex;
             flex-direction: column;
             gap: 0.75rem;
-            background: #f8fafc;
+            background: transparent;
         }
 
-        .chat-area::-webkit-scrollbar { width: 6px; }
+        .chat-area::-webkit-scrollbar { width: 5px; }
         .chat-area::-webkit-scrollbar-track { background: transparent; }
-        .chat-area::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        .chat-area::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 3px; }
 
         /* ── Message Bubbles ────────────── */
         .msg {
@@ -956,15 +1021,17 @@ HTML_PAGE = r"""<!DOCTYPE html>
         }
 
         .msg-ai {
-            background: #ffffff;
-            border: 1px solid #e2e8f0;
+            background: rgba(255,255,255,0.05);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-left: 3px solid rgba(0,212,255,0.4);
             align-self: flex-start;
             border-bottom-left-radius: 4px;
-            color: #1e293b;
+            color: #e2e8f0;
         }
 
         .msg-user {
-            background: #0d9488;
+            background: linear-gradient(135deg, #00d4ff, #7c3aed);
             border: none;
             align-self: flex-end;
             border-bottom-right-radius: 4px;
@@ -974,7 +1041,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
         .msg-system {
             align-self: center;
             background: transparent;
-            color: #94a3b8;
+            color: rgba(255,255,255,0.45);
             font-size: 0.82rem;
             padding: 0.3rem;
         }
@@ -984,50 +1051,36 @@ HTML_PAGE = r"""<!DOCTYPE html>
             display: flex;
             flex-wrap: wrap;
             gap: 0.5rem;
-            margin-top: 0.4rem;
+            margin-top: 0.5rem;
+            max-width: 700px;
         }
 
         .chip {
-            background: #ffffff;
-            border: 1px solid #e2e8f0;
-            border-radius: 20px;
-            padding: 0.45rem 0.95rem;
+            background: rgba(255,255,255,0.04);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px;
+            padding: 0.55rem 0.95rem;
             font-size: 0.82rem;
-            color: #475569;
+            color: rgba(255,255,255,0.65);
             cursor: pointer;
-            transition: all 0.2s;
-            font-weight: 500;
+            transition: all 0.25s;
+            font-weight: 400;
         }
 
         .chip:hover {
-            border-color: #14b8a6;
-            color: #0d9488;
-            background: #f0fdfa;
-            transform: translateY(-1px);
+            border-color: rgba(0,212,255,0.4);
+            color: #00d4ff;
+            background: rgba(0,212,255,0.08);
+            box-shadow: 0 0 16px rgba(0,212,255,0.1);
+            transform: translateY(-2px);
         }
-
-        /* ── Generate Button (inline) ──── */
-        .btn-generate-inline {
-            background: #14b8a6;
-            color: #ffffff;
-            border: none;
-            border-radius: 12px;
-            padding: 0.7rem 2rem;
-            font-size: 0.92rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s;
-            display: inline-block;
-        }
-
-        .btn-generate-inline:hover { background: #0d9488; }
-        .btn-generate-inline:disabled { background: #cbd5e1; color: #94a3b8; cursor: not-allowed; }
 
         /* ── Progress (inline) ──────────── */
         .progress-inline { width: 100%; max-width: 380px; margin-top: 0.4rem; }
 
         .progress-track {
-            background: #e2e8f0;
+            background: rgba(255,255,255,0.08);
             border-radius: 8px;
             height: 8px;
             overflow: hidden;
@@ -1037,14 +1090,14 @@ HTML_PAGE = r"""<!DOCTYPE html>
         .progress-fill {
             height: 100%;
             width: 0%;
-            background: linear-gradient(90deg, #14b8a6, #0d9488);
+            background: linear-gradient(90deg, #00d4ff, #7c3aed);
             border-radius: 8px;
             transition: width 0.5s ease;
         }
 
         .progress-label {
             font-size: 0.82rem;
-            color: #0d9488;
+            color: #00d4ff;
             font-weight: 500;
         }
 
@@ -1056,16 +1109,16 @@ HTML_PAGE = r"""<!DOCTYPE html>
             padding: 0.35rem 0.9rem;
             font-size: 0.78rem;
             font-weight: 600;
-            color: #dc2626;
-            background: #fef2f2;
-            border: 1px solid #fecaca;
+            color: #f87171;
+            background: rgba(239,68,68,0.1);
+            border: 1px solid rgba(239,68,68,0.25);
             border-radius: 6px;
             cursor: pointer;
             transition: all 0.2s ease;
         }
         .btn-stop-gen:hover {
-            background: #fee2e2;
-            border-color: #f87171;
+            background: rgba(239,68,68,0.18);
+            border-color: rgba(239,68,68,0.4);
         }
         .btn-stop-gen:disabled {
             opacity: 0.5;
@@ -1077,7 +1130,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
             width: 100%;
             max-width: 600px;
             border-radius: 12px;
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+            box-shadow: 0 4px 24px rgba(0,0,0,0.3), 0 0 20px rgba(0,212,255,0.06);
             margin-top: 0.4rem;
         }
 
@@ -1086,7 +1139,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
 
         .typing span {
             width: 6px; height: 6px;
-            background: #14b8a6;
+            background: #00d4ff;
             border-radius: 50%;
             animation: bounce 1.4s infinite;
         }
@@ -1102,8 +1155,9 @@ HTML_PAGE = r"""<!DOCTYPE html>
         /* ── Input Bar ──────────────────── */
         .input-bar {
             padding: 0.75rem 1.5rem;
-            background: #ffffff;
-            border-top: 1px solid #e2e8f0;
+            background: rgba(255,255,255,0.03);
+            backdrop-filter: blur(12px);
+            border-top: 1px solid rgba(255,255,255,0.06);
             display: flex;
             gap: 0.5rem;
             align-items: center;
@@ -1112,21 +1166,21 @@ HTML_PAGE = r"""<!DOCTYPE html>
 
         .input-bar input {
             flex: 1;
-            background: #f8fafc;
-            border: 1px solid #e2e8f0;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
             border-radius: 24px;
             padding: 0.7rem 1.2rem;
             font-size: 0.9rem;
-            color: #0f172a;
+            color: #e2e8f0;
             outline: none;
             transition: border-color 0.2s, box-shadow 0.2s;
         }
 
-        .input-bar input:focus { border-color: #14b8a6; box-shadow: 0 0 0 3px rgba(20,184,166,0.1); }
-        .input-bar input::placeholder { color: #94a3b8; }
+        .input-bar input:focus { border-color: #00d4ff; box-shadow: 0 0 16px rgba(0,212,255,0.12); }
+        .input-bar input::placeholder { color: rgba(255,255,255,0.3); }
 
         .btn-send {
-            background: #14b8a6;
+            background: linear-gradient(135deg, #00d4ff, #7c3aed);
             color: #ffffff;
             border: none;
             border-radius: 24px;
@@ -1138,8 +1192,8 @@ HTML_PAGE = r"""<!DOCTYPE html>
             white-space: nowrap;
         }
 
-        .btn-send:hover { background: #0d9488; }
-        .btn-send:disabled { background: #cbd5e1; color: #94a3b8; cursor: not-allowed; }
+        .btn-send:hover { opacity: 0.9; box-shadow: 0 0 16px rgba(0,212,255,0.2); }
+        .btn-send:disabled { background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.3); cursor: not-allowed; }
 
         /* ── Library Panel ─────────────── */
         .library-panel {
@@ -1148,14 +1202,15 @@ HTML_PAGE = r"""<!DOCTYPE html>
             right: 0;
             width: 340px;
             height: 100vh;
-            background: #ffffff;
-            border-left: 1px solid #e2e8f0;
+            background: rgba(15,15,30,0.95);
+            backdrop-filter: blur(20px);
+            border-left: 1px solid rgba(255,255,255,0.08);
             transform: translateX(100%);
             transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             z-index: 100;
             display: flex;
             flex-direction: column;
-            box-shadow: -4px 0 24px rgba(0,0,0,0.06);
+            box-shadow: -4px 0 32px rgba(0,0,0,0.4);
         }
 
         .library-panel.open { transform: translateX(0); }
@@ -1165,20 +1220,20 @@ HTML_PAGE = r"""<!DOCTYPE html>
             align-items: center;
             justify-content: space-between;
             padding: 0.85rem 1rem;
-            border-bottom: 1px solid #e2e8f0;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
             flex-shrink: 0;
         }
 
         .library-header h2 {
             font-size: 0.95rem;
-            color: #0f172a;
+            color: #e2e8f0;
             font-weight: 600;
         }
 
         .library-close {
             background: none;
             border: none;
-            color: #94a3b8;
+            color: rgba(255,255,255,0.4);
             font-size: 1.2rem;
             cursor: pointer;
             padding: 0.2rem 0.5rem;
@@ -1186,7 +1241,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
             transition: all 0.2s;
         }
 
-        .library-close:hover { color: #0f172a; background: #f1f5f9; }
+        .library-close:hover { color: #e2e8f0; background: rgba(255,255,255,0.08); }
 
         .library-list {
             flex: 1;
@@ -1199,11 +1254,11 @@ HTML_PAGE = r"""<!DOCTYPE html>
 
         .library-list::-webkit-scrollbar { width: 5px; }
         .library-list::-webkit-scrollbar-track { background: transparent; }
-        .library-list::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        .library-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 3px; }
 
         .library-card {
-            background: #ffffff;
-            border: 1px solid #e2e8f0;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.08);
             border-radius: 10px;
             padding: 0.75rem 0.9rem;
             cursor: pointer;
@@ -1211,14 +1266,14 @@ HTML_PAGE = r"""<!DOCTYPE html>
         }
 
         .library-card:hover {
-            border-color: #14b8a6;
-            background: #f0fdfa;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+            border-color: rgba(0,212,255,0.3);
+            background: rgba(0,212,255,0.06);
+            box-shadow: 0 0 16px rgba(0,212,255,0.08);
         }
 
         .library-card-title {
             font-size: 0.87rem;
-            color: #0f172a;
+            color: #e2e8f0;
             font-weight: 500;
             line-height: 1.35;
             display: -webkit-box;
@@ -1229,7 +1284,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
 
         .library-card-question {
             font-size: 0.78rem;
-            color: #94a3b8;
+            color: rgba(255,255,255,0.35);
             margin-top: 0.25rem;
             white-space: nowrap;
             overflow: hidden;
@@ -1242,12 +1297,12 @@ HTML_PAGE = r"""<!DOCTYPE html>
             gap: 0.5rem;
             margin-top: 0.35rem;
             font-size: 0.72rem;
-            color: #94a3b8;
+            color: rgba(255,255,255,0.35);
         }
 
         .library-card-meta .audio-badge {
-            background: #f0fdfa;
-            color: #0d9488;
+            background: rgba(0,212,255,0.1);
+            color: #00d4ff;
             padding: 0.12rem 0.5rem;
             border-radius: 10px;
             font-size: 0.68rem;
@@ -1260,7 +1315,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
             align-items: center;
             justify-content: center;
             flex: 1;
-            color: #94a3b8;
+            color: rgba(255,255,255,0.35);
             font-size: 0.87rem;
             text-align: center;
             padding: 2rem;
@@ -1273,7 +1328,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
         .library-overlay {
             position: fixed;
             inset: 0;
-            background: rgba(0,0,0,0.15);
+            background: rgba(0,0,0,0.4);
             z-index: 99;
             opacity: 0;
             pointer-events: none;
@@ -1513,7 +1568,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
         generating = true;
         ready = false;  // Reset so next [READY] from a new question triggers the button again
 
-        const genBtn = document.querySelector('.btn-generate-inline');
+        const genBtn = document.querySelector('.btn-generate-wizard');
         if (genBtn) genBtn.disabled = true;
 
         addProgress();
@@ -1521,7 +1576,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
 
         try {
             var activeOverrides = [];
-            document.querySelectorAll('.pref-btn.active').forEach(function(b) {
+            document.querySelectorAll('.override-chip.active').forEach(function(b) {
                 if (b.dataset.key) activeOverrides.push(b.dataset.key);
             });
 
@@ -1566,7 +1621,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
                         pollTimer = null;
                         removeProgress();
                         // Remove old disabled generate button before adding fresh one
-                        document.querySelectorAll('.btn-generate-inline').forEach(b => b.closest('div').remove());
+                        document.querySelectorAll('.generate-wrap').forEach(function(w) { w.remove(); });
                         addBubble('system', 'Generation stopped. You can try again when ready.');
                         addGenerateButton();
                         generating = false;
@@ -1633,8 +1688,13 @@ HTML_PAGE = r"""<!DOCTYPE html>
         wrap.id = 'sample-chips';
         const samples = [
             'Find the derivative of x\u2074 - 3x\u00b2 + 5',
-            'Evaluate lim(x\u21923) of (x\u00b2-9)/(x-3)',
+            'Evaluate lim(x\u21920) of sin(x)/x',
             'Find \u222b(4x\u00b3 + 2x) dx',
+            'What is the derivative of ln(x\u00b2+1)?',
+            'Find the area under y = x\u00b2 from 0 to 3',
+            'Solve: d/dx [sin(x)\u00b7cos(x)]',
+            'Evaluate lim(x\u2192\u221e) of (3x\u00b2+1)/(x\u00b2-4)',
+            'Find the tangent line to y=e\u02e3 at x=1',
         ];
         for (const s of samples) {
             const chip = document.createElement('span');
@@ -1651,55 +1711,88 @@ HTML_PAGE = r"""<!DOCTYPE html>
         if (c) c.remove();
     }
 
-    function buildInlinePrefsHTML() {
-        return '<div class="inline-prefs">' +
-            '<div class="preset-selector">' +
-            '<div class="preset-label">Video Style</div>' +
-            '<div class="preset-row">' +
-            '<button class="preset-btn" data-preset="quick_review">&#9889; Quick Review</button>' +
-            '<button class="preset-btn active" data-preset="standard">&#128214; Standard</button>' +
-            '<button class="preset-btn" data-preset="deep_dive">&#128300; Deep Dive</button>' +
-            '</div></div>' +
-            '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">' +
-            '<span style="font-size:13px;color:#64748b;font-weight:500;">Preferences</span>' +
-            '<button class="prefs-clear" onclick="clearPrefs()">reset all</button>' +
-            '</div>' +
-            '<div class="prefs-toggles">' +
-            '<button class="pref-btn" data-key="more_graphs" onclick="togglePref(this)">&#128202; More Graphs</button>' +
-            '<button class="pref-btn" data-key="more_steps" onclick="togglePref(this)">&#128290; More Detail</button>' +
-            '<button class="pref-btn" data-key="simpler" onclick="togglePref(this)">&#128161; Simpler Language</button>' +
-            '<button class="pref-btn" data-key="more_color" onclick="togglePref(this)">&#127912; Color-Coded</button>' +
-            '<button class="pref-btn" data-key="more_examples" onclick="togglePref(this)">&#128221; More Examples</button>' +
-            '<button class="pref-btn" data-key="concise" onclick="togglePref(this)">&#9889; Concise</button>' +
-            '<button class="pref-btn" data-key="more_diagrams" onclick="togglePref(this)">&#128208; More Diagrams</button>' +
-            '<button class="pref-btn" data-key="show_mistakes" onclick="togglePref(this)">&#127919; Show Mistakes</button>' +
-            '<button class="pref-btn" data-key="recap" onclick="togglePref(this)">&#128203; Recap</button>' +
-            '<button class="pref-btn" data-key="analogies" onclick="togglePref(this)">&#127758; Analogies</button>' +
-            '</div>' +
-            '<div class="prefs-status" id="prefs-status"></div>' +
-            '</div>';
-    }
-
     function addGenerateButton() {
-        const wrap = document.createElement('div');
-        wrap.style.cssText = 'align-self:flex-start;margin-top:0.2rem;';
-        wrap.className = 'generate-wrap';
-        const btn = document.createElement('button');
-        btn.className = 'btn-generate-inline';
-        btn.textContent = '\u25b6  Generate Video';
-        btn.onclick = generateVideo;
-        wrap.appendChild(btn);
+        /* ── Wizard: conversational preference flow ── */
+        var wrap = document.createElement('div');
+        wrap.className = 'generate-wrap msg msg-ai';
+        wrap.style.cssText = 'max-width:90%;border-left:3px solid rgba(0,212,255,0.4);';
 
-        var tmp = document.createElement('div');
-        tmp.innerHTML = buildInlinePrefsHTML();
-        wrap.appendChild(tmp.firstChild);
+        /* Step 1: Preset cards */
+        var s1 = document.createElement('div');
+        s1.className = 'wizard-section';
+        s1.innerHTML =
+            '<div class="wizard-label">What kind of video would you like?</div>' +
+            '<div class="preset-cards">' +
+            '  <div class="preset-card" data-preset="quick_review">' +
+            '    <span class="preset-card-icon">&#9889;</span>' +
+            '    <div class="preset-card-name">Quick Review</div>' +
+            '    <div class="preset-card-desc">Just the method, keep it brief</div>' +
+            '  </div>' +
+            '  <div class="preset-card active" data-preset="standard">' +
+            '    <span class="preset-card-icon">&#128214;</span>' +
+            '    <div class="preset-card-name">Standard</div>' +
+            '    <div class="preset-card-desc">Walk me through step by step</div>' +
+            '  </div>' +
+            '  <div class="preset-card" data-preset="deep_dive">' +
+            '    <span class="preset-card-icon">&#128300;</span>' +
+            '    <div class="preset-card-name">Deep Dive</div>' +
+            '    <div class="preset-card-desc">Explain everything in detail</div>' +
+            '  </div>' +
+            '</div>';
+        wrap.appendChild(s1);
+
+        /* Step 2: Override chips */
+        var s2 = document.createElement('div');
+        s2.className = 'wizard-section';
+        s2.style.marginTop = '1rem';
+        s2.innerHTML =
+            '<div class="wizard-label">Any special requests?</div>' +
+            '<div class="override-chips">' +
+            '  <span class="override-chip" data-key="more_graphs">&#128202; More Visuals</span>' +
+            '  <span class="override-chip" data-key="more_color">&#127912; Color-Coded</span>' +
+            '  <span class="override-chip" data-key="simpler">&#128161; Simpler Language</span>' +
+            '  <span class="override-chip" data-key="show_mistakes">&#127919; Show Common Mistakes</span>' +
+            '  <span class="override-chip" data-key="recap">&#128203; Recap at End</span>' +
+            '  <span class="override-chip" data-key="analogies">&#127758; Real-World Analogies</span>' +
+            '</div>';
+        wrap.appendChild(s2);
+
+        /* Step 3: Generate button */
+        var s3 = document.createElement('div');
+        s3.className = 'wizard-section';
+        s3.style.cssText = 'margin-top:1.2rem;text-align:center;';
+        var btn = document.createElement('button');
+        btn.className = 'btn-generate-wizard';
+        btn.innerHTML = '&#10024; Generate My Video';
+        btn.onclick = generateVideo;
+        s3.appendChild(btn);
+        wrap.appendChild(s3);
 
         chatArea.appendChild(wrap);
 
-        wrap.querySelectorAll('.pref-btn').forEach(function(b) {
-            if (activePrefs.has(b.dataset.key)) b.classList.add('active');
+        /* Wire up preset card selection */
+        wrap.querySelectorAll('.preset-card').forEach(function(card) {
+            card.addEventListener('click', function() {
+                wrap.querySelectorAll('.preset-card').forEach(function(c) { c.classList.remove('active'); });
+                card.classList.add('active');
+                currentPreset = card.dataset.preset;
+            });
         });
-        initPresetButtons(wrap);
+
+        /* Wire up override chip toggles */
+        wrap.querySelectorAll('.override-chip').forEach(function(chip) {
+            if (activePrefs.has(chip.dataset.key)) chip.classList.add('active');
+            chip.addEventListener('click', function() {
+                var key = chip.dataset.key;
+                if (activePrefs.has(key)) {
+                    activePrefs.delete(key);
+                    chip.classList.remove('active');
+                } else {
+                    activePrefs.add(key);
+                    chip.classList.add('active');
+                }
+            });
+        });
 
         scrollBottom();
     }
@@ -1753,7 +1846,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
         div.className = 'msg msg-ai';
         div.style.maxWidth = '88%';
         div.innerHTML =
-            '<div style="margin-bottom:0.4rem;font-size:0.85rem;color:#0d9488;font-weight:600;">' +
+            '<div style="margin-bottom:0.4rem;font-size:0.85rem;color:#00d4ff;font-weight:600;">' +
             '\u2713 Your video is ready!</div>' +
             '<video class="video-inline" controls autoplay>' +
             '  <source src="/api/video/' + jobId + '" type="video/mp4">' +
@@ -1786,60 +1879,16 @@ HTML_PAGE = r"""<!DOCTYPE html>
     const activePrefs = new Set();
     let currentPreset = 'standard';
 
-    function initPresetButtons(container) {
-        container.querySelectorAll('.preset-btn').forEach(function(pbtn) {
-            pbtn.addEventListener('click', function() {
-                container.querySelectorAll('.preset-btn').forEach(function(b) {
-                    b.classList.remove('active');
-                });
-                pbtn.classList.add('active');
-                currentPreset = pbtn.dataset.preset;
-            });
-        });
-    }
-
-    function togglePref(btn) {
-        const key    = btn.dataset.key;
-        const status = document.getElementById('prefs-status');
-
-        if (activePrefs.has(key)) {
-            activePrefs.delete(key);
-            btn.classList.remove('active');
-            status.textContent = 'Removed (takes effect on next video)';
-        } else {
-            activePrefs.add(key);
-            btn.classList.add('active');
-            status.textContent = 'Added (takes effect on next video)';
-        }
-        setTimeout(() => status.textContent = '', 2000);
-    }
-
     async function clearPrefs() {
-        const status = document.getElementById('prefs-status');
-        status.textContent = 'Clearing...';
         try {
             await fetch('/api/preferences', { method: 'DELETE', headers: apiHeaders() });
             activePrefs.clear();
-            document.querySelectorAll('.pref-btn').forEach(b => b.classList.remove('active'));
             currentPreset = 'standard';
-            document.querySelectorAll('.preset-btn').forEach(b => {
-                b.style.border = '1.5px solid #e2e8f0';
-                b.style.background = 'white';
-                b.style.color = '#334155';
-                b.style.fontWeight = '400';
-                b.classList.remove('active');
-            });
-            const stdBtn = document.querySelector('.preset-btn[data-preset="standard"]');
-            if (stdBtn) {
-                stdBtn.style.border = '1.5px solid #14b8a6';
-                stdBtn.style.background = '#f0fdfa';
-                stdBtn.style.color = '#14b8a6';
-                stdBtn.style.fontWeight = '600';
-                stdBtn.classList.add('active');
-            }
-            status.textContent = '\u2713 Cleared';
-        } catch (e) { status.textContent = 'Error'; }
-        setTimeout(() => status.textContent = '', 2000);
+            document.querySelectorAll('.override-chip').forEach(function(c) { c.classList.remove('active'); });
+            document.querySelectorAll('.preset-card').forEach(function(c) { c.classList.remove('active'); });
+            var stdCard = document.querySelector('.preset-card[data-preset="standard"]');
+            if (stdCard) stdCard.classList.add('active');
+        } catch (e) { /* ignore */ }
     }
 
     async function loadPrefs() {
@@ -1867,7 +1916,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
 
     async function loadLibrary() {
         const list = document.getElementById('library-list');
-        list.innerHTML = '<div class="library-empty" style="color:#0d9488;font-size:0.8rem;">Loading...</div>';
+        list.innerHTML = '<div class="library-empty" style="color:#00d4ff;font-size:0.8rem;">Loading...</div>';
 
         try {
             const res  = await fetch('/api/library', { headers: apiHeaders() });
@@ -1948,4 +1997,5 @@ HTML_PAGE = r"""<!DOCTYPE html>
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=4000, debug=True)
+    port = int(os.environ.get("PORT", 4000))
+    app.run(host="0.0.0.0", port=port, debug=(os.environ.get("RAILWAY_ENVIRONMENT") is None))
